@@ -1,0 +1,28 @@
+# Grafana datasource provisioning（docs/18 §3.3）——Prometheus（指标）+ Tempo（trace）。
+# 挂到你现有的 global-grafana：把本文件放进它的 provisioning/datasources/ 目录（见本目录 README）。
+#
+# URL 约定（global-grafana 在 global-network，my-agent 服务在 my-agent-net）：
+# - Prometheus：global 栈里的兄弟容器，按容器名直连（默认 global-prometheus:9090）。
+# - Tempo：my-agent 的 tempo 容器把 3200 发布到宿主机，跨网络经 host.docker.internal 访问。
+# 若你的容器名/端口不同，改下面两个 url 即可（uid 保持不变，dashboard JSON 按 uid 引用）。
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://global-prometheus:9090
+    isDefault: true
+    editable: true
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://host.docker.internal:3200
+    editable: true
+    jsonData:
+      # trace → logs 跳转留 seam（当前无 Loki，docs/18 §2 不做）；接入 Loki 后在此补
+      # tracesToLogsV2。TraceQL 搜索与 service graph 无需额外配置即可用。
+      httpMethod: GET

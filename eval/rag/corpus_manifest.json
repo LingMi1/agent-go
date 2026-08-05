@@ -1,0 +1,355 @@
+{
+  "corpus_version": "1.0",
+  "language": "zh-CN",
+  "source_revision": "c04ce65",
+  "documents": [
+    {
+      "document_id": "architecture_dual_plane_system",
+      "path": "corpus/architecture/dual_plane_system.md",
+      "title": "Go 控制面与 Python 认知面双平面架构",
+      "module": "architecture",
+      "status": "implemented",
+      "source_files": ["control-plane/cmd/controlplane/main.go", "cognition/cognition/server/grpc_server.py", "proto/agent/v1/agent.proto"],
+      "facts": [
+        {"fact_id": "architecture_dual_plane_system_f01", "statement": "控制面通过 CognitionService.Run 调用 Python 的 server-streaming gRPC 服务。", "source_file": "proto/agent/v1/agent.proto", "source_symbol": "service CognitionService.Run", "confidence": "verified"},
+        {"fact_id": "architecture_dual_plane_system_f02", "statement": "Go 进程装配 HTTP Router、认知面 gRPC Client 和控制面 Dispatcher。", "source_file": "control-plane/cmd/controlplane/main.go", "source_symbol": "main", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "architecture_event_contract_ledger_replay",
+      "path": "corpus/architecture/event_contract_ledger_replay.md",
+      "title": "统一事件契约、事实账本与同构回放",
+      "module": "architecture",
+      "status": "implemented",
+      "source_files": ["proto/agent/v1/agent.proto", "control-plane/internal/stream/hub.go", "control-plane/internal/store/event.go", "control-plane/internal/api/api.go"],
+      "facts": [
+        {"fact_id": "architecture_event_contract_ledger_replay_f01", "statement": "事件泵在写 SSE 之前先将事件追加到 PostgreSQL 账本。", "source_file": "control-plane/internal/stream/hub.go", "source_symbol": "Hub.Pump", "confidence": "verified"},
+        {"fact_id": "architecture_event_contract_ledger_replay_f02", "statement": "历史回放按 seq 升序读取事件并复用实时 SSE 编码路径。", "source_file": "control-plane/internal/api/api.go", "source_symbol": "handlers.replay", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "orchestration_react_graph",
+      "path": "corpus/orchestration/react_graph.md",
+      "title": "ReAct 思考与工具执行循环",
+      "module": "orchestration",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/graphs/react.py", "cognition/cognition/graphs/nodes.py", "cognition/cognition/graphs/state.py", "cognition/tests/test_state_routing.py"],
+      "facts": [
+        {"fact_id": "orchestration_react_graph_f01", "statement": "ReAct 图的拓扑是 agent 在 tools 与 END 之间条件路由，tools 完成后回到 agent。", "source_file": "cognition/cognition/graphs/react.py", "source_symbol": "build_react_graph", "confidence": "verified"},
+        {"fact_id": "orchestration_react_graph_f02", "statement": "达到 max_steps 后即使存在 tool_calls 也会结束。", "source_file": "cognition/cognition/graphs/state.py", "source_symbol": "route_after_agent", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "orchestration_plan_execute_replan",
+      "path": "corpus/orchestration/plan_execute_replan.md",
+      "title": "Plan-Execute 计划生命周期与动态重规划",
+      "module": "orchestration",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/graphs/plan_execute.py", "cognition/cognition/graphs/plan_lifecycle.py", "cognition/tests/test_plan_lifecycle.py", "cognition/tests/test_plan_continuation.py"],
+      "facts": [
+        {"fact_id": "orchestration_plan_execute_replan_f01", "statement": "计划由 steps、step_status 和 notes 三个并行列表表示。", "source_file": "cognition/cognition/graphs/plan_lifecycle.py", "source_symbol": "Plan", "confidence": "verified"},
+        {"fact_id": "orchestration_plan_execute_replan_f02", "statement": "只有显式 update 命令且计划未完成时才替换剩余步骤。", "source_file": "cognition/cognition/graphs/plan_execute.py", "source_symbol": "build_plan_execute_graph.planner", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "orchestration_send_fanout_concurrency",
+      "path": "corpus/orchestration/send_fanout_concurrency.md",
+      "title": "Send 子任务扇出与有界并发",
+      "module": "orchestration",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/graphs/plan_execute.py", "cognition/tests/test_plan_routing.py", "cognition/cognition/config.py"],
+      "facts": [
+        {"fact_id": "orchestration_send_fanout_concurrency_f01", "statement": "当前计划步骤按字面量 <sep> 切分并生成多个 Send executor 分支。", "source_file": "cognition/cognition/graphs/plan_execute.py", "source_symbol": "_route_after_planner", "confidence": "verified"},
+        {"fact_id": "orchestration_send_fanout_concurrency_f02", "statement": "executor 在 asyncio.Semaphore 和 asyncio.wait_for 保护下运行。", "source_file": "cognition/cognition/graphs/plan_execute.py", "source_symbol": "run_branch_guarded", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "orchestration_run_admission_cancellation",
+      "path": "corpus/orchestration/run_admission_cancellation.md",
+      "title": "Run 请求准入、背压与取消传播",
+      "module": "orchestration",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/dispatch/dispatch.go", "control-plane/internal/api/api.go", "control-plane/internal/stream/hub.go", "control-plane/internal/config/config.go"],
+      "facts": [
+        {"fact_id": "orchestration_run_admission_cancellation_f01", "statement": "Dispatcher 使用 Weighted.TryAcquire 非阻塞申请请求级并发槽。", "source_file": "control-plane/internal/dispatch/dispatch.go", "source_symbol": "Dispatcher.Admit", "confidence": "verified"},
+        {"fact_id": "orchestration_run_admission_cancellation_f02", "statement": "满载请求在写 SSE 响应头之前返回 HTTP 429。", "source_file": "control-plane/internal/api/api.go", "source_symbol": "handlers.streamRun", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_agentic_rag_graph",
+      "path": "corpus/retrieval/agentic_rag_graph.md",
+      "title": "Agentic RAG 子图拓扑",
+      "module": "retrieval",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/rag/graph.py", "cognition/cognition/rag/types.py", "cognition/tests/test_rag_graph_fake.py"],
+      "facts": [
+        {"fact_id": "retrieval_agentic_rag_graph_f01", "statement": "RAG 子图包含 route、expand、hybrid_retrieve、reflect、rerank 和 generate 节点。", "source_file": "cognition/cognition/rag/graph.py", "source_symbol": "build_rag_subgraph", "confidence": "verified"},
+        {"fact_id": "retrieval_agentic_rag_graph_f02", "statement": "简单问题由 route 直接送入 generate，不执行检索链。", "source_file": "cognition/cognition/rag/graph.py", "source_symbol": "build_rag_subgraph.after_route", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_dense_sparse_rrf",
+      "path": "corpus/retrieval/dense_sparse_rrf.md",
+      "title": "Qdrant Dense 与 Sparse 混合检索及 RRF",
+      "module": "retrieval",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/rag/store.py", "cognition/cognition/rag/retriever.py", "cognition/tests/test_rag_store_memory.py", "cognition/tests/test_rag_retriever.py"],
+      "facts": [
+        {"fact_id": "retrieval_dense_sparse_rrf_f01", "statement": "Qdrant 查询使用 dense 和 sparse 两路 Prefetch 以及原生 Fusion.RRF。", "source_file": "cognition/cognition/rag/store.py", "source_symbol": "QdrantStore.hybrid_query", "confidence": "verified"},
+        {"fact_id": "retrieval_dense_sparse_rrf_f02", "statement": "多个子问题分别混合检索后按 dedup_key 合并去重。", "source_file": "cognition/cognition/rag/retriever.py", "source_symbol": "Retriever.retrieve", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_query_rewrite_reflect",
+      "path": "corpus/retrieval/query_rewrite_reflect.md",
+      "title": "子问题扩展、Reflect 与重检索",
+      "module": "retrieval",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/rag/graph.py", "cognition/cognition/rag/expand.py", "cognition/cognition/rag/reflect.py", "cognition/tests/test_rag_reflect.py"],
+      "facts": [
+        {"fact_id": "retrieval_query_rewrite_reflect_f01", "statement": "Reflect 解析 is_answer 和 rewrite_query，并在不足时更新 current_query。", "source_file": "cognition/cognition/rag/graph.py", "source_symbol": "build_rag_subgraph.reflect", "confidence": "verified"},
+        {"fact_id": "retrieval_query_rewrite_reflect_f02", "statement": "停止条件为证据足够或 loop 达到 reflection limit。", "source_file": "cognition/cognition/rag/reflect.py", "source_symbol": "should_stop", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_ingestion_chunking_idempotency",
+      "path": "corpus/retrieval/ingestion_chunking_idempotency.md",
+      "title": "文档分块、向量化与幂等入库",
+      "module": "retrieval",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/rag/ingest.py", "cognition/cognition/rag/chunking.py", "cognition/cognition/attachments.py", "cognition/tests/test_rag_ingest_idempotent.py"],
+      "facts": [
+        {"fact_id": "retrieval_ingestion_chunking_idempotency_f01", "statement": "入库流程依次执行分块、dense embedding、sparse embedding 和 Qdrant upsert。", "source_file": "cognition/cognition/rag/ingest.py", "source_symbol": "ingest", "confidence": "verified"},
+        {"fact_id": "retrieval_ingestion_chunking_idempotency_f02", "statement": "stable_ids 模式用包含 kb_id 和 dedup_key 的 uuid5 生成点 ID。", "source_file": "cognition/cognition/rag/ingest.py", "source_symbol": "ingest", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_rerank_citations_providers",
+      "path": "corpus/retrieval/rerank_citations_providers.md",
+      "title": "Rerank、引用生成与检索 Provider",
+      "module": "retrieval",
+      "status": "partial",
+      "source_files": ["cognition/cognition/rag/reranker.py", "cognition/cognition/rag/rerank.py", "cognition/cognition/rag/citation.py", "cognition/cognition/rag/factory.py"],
+      "facts": [
+        {"fact_id": "retrieval_rerank_citations_providers_f01", "statement": "rerank 排序逻辑支持分数覆盖、阈值过滤和 top-k 截断。", "source_file": "cognition/cognition/rag/rerank.py", "source_symbol": "order_by_score", "confidence": "verified"},
+        {"fact_id": "retrieval_rerank_citations_providers_f02", "statement": "Provider factory 可构造 fake、fastembed 和 SiliconFlow 兼容实现。", "source_file": "cognition/cognition/rag/factory.py", "source_symbol": "build_embedder/build_sparse/build_reranker", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "retrieval_kb_isolation_and_management",
+      "path": "corpus/retrieval/kb_isolation_and_management.md",
+      "title": "用户知识库隔离与管理接口",
+      "module": "retrieval",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/server/servicer.py", "cognition/cognition/tools/knowledge_search.py", "cognition/cognition/rag/store.py", "control-plane/internal/kb/kb.go"],
+      "facts": [
+        {"fact_id": "retrieval_kb_isolation_and_management_f01", "statement": "知识搜索优先使用 servicer 注入的 config metadata kb_id，而不是模型参数。", "source_file": "cognition/cognition/tools/knowledge_search.py", "source_symbol": "build_knowledge_search_tool.knowledge_search", "confidence": "verified"},
+        {"fact_id": "retrieval_kb_isolation_and_management_f02", "statement": "Go 管理客户端按 kb_id 和 source_id 过滤删除 Qdrant 文档点。", "source_file": "control-plane/internal/kb/kb.go", "source_symbol": "Client.DeleteDoc", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "tools_unified_registry",
+      "path": "corpus/tools/unified_registry.md",
+      "title": "本地、MCP、Skill 与 RAG 统一工具注册表",
+      "module": "tools",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/tools/registry.py", "cognition/cognition/mcp/naming.py", "cognition/cognition/events/mapper.py", "cognition/tests/test_tool_provider_mapping.py"],
+      "facts": [
+        {"fact_id": "tools_unified_registry_f01", "statement": "build_tool_suite 聚合本地、MCP、RAG、图像、代码和 Skill 工具。", "source_file": "cognition/cognition/tools/registry.py", "source_symbol": "build_tool_suite", "confidence": "verified"},
+        {"fact_id": "tools_unified_registry_f02", "statement": "工具 metadata.provider 被汇总为 EventMapper 使用的 provider_map。", "source_file": "cognition/cognition/tools/registry.py", "source_symbol": "build_tool_suite", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "tools_mcp_transports_lifecycle",
+      "path": "corpus/tools/mcp_transports_lifecycle.md",
+      "title": "MCP 三传输、连接生命周期与串行调用",
+      "module": "tools",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/mcp/config.py", "cognition/cognition/mcp/connection.py", "cognition/cognition/mcp/registry.py", "cognition/tests/test_mcp_registry_fake.py"],
+      "facts": [
+        {"fact_id": "tools_mcp_transports_lifecycle_f01", "statement": "MCP 配置支持 stdio、sse 和 streamable_http 三种归一化传输。", "source_file": "cognition/cognition/mcp/config.py", "source_symbol": "TRANSPORTS", "confidence": "verified"},
+        {"fact_id": "tools_mcp_transports_lifecycle_f02", "statement": "SSE/HTTP 使用单消费者 worker，stdio 使用 per-server lock 串行。", "source_file": "cognition/cognition/mcp/connection.py", "source_symbol": "PersistentConnection/TransientConnection", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "tools_skill_disclosure_runner",
+      "path": "corpus/tools/skill_disclosure_runner.md",
+      "title": "Skill 渐进式披露与脚本运行器",
+      "module": "tools",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/skills/registry.py", "cognition/cognition/skills/disclosure.py", "cognition/cognition/skills/tools.py", "cognition/cognition/skills/runner/request.py"],
+      "facts": [
+        {"fact_id": "tools_skill_disclosure_runner_f01", "statement": "SkillRegistry 从配置目录扫描并载入 SKILL.md 定义。", "source_file": "cognition/cognition/skills/registry.py", "source_symbol": "SkillRegistry.refresh", "confidence": "verified"},
+        {"fact_id": "tools_skill_disclosure_runner_f02", "statement": "脚本请求仅支持已声明解释器扩展名并拒绝路径穿越。", "source_file": "cognition/cognition/skills/runner/request.py", "source_symbol": "build_request", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "tools_code_interpreter_sandbox_boundary",
+      "path": "corpus/tools/code_interpreter_sandbox_boundary.md",
+      "title": "Code Interpreter 与脚本沙箱安全边界",
+      "module": "tools",
+      "status": "partial",
+      "source_files": ["cognition/cognition/tools/code_interpreter.py", "cognition/cognition/skills/runner/docker.py", "cognition/cognition/skills/runner/local.py", "cognition/cognition/config.py"],
+      "facts": [
+        {"fact_id": "tools_code_interpreter_sandbox_boundary_f01", "statement": "Docker 执行路径配置断网、只读根目录、资源限制和独立输出挂载。", "source_file": "cognition/cognition/tools/code_interpreter.py", "source_symbol": "build_code_interpreter_tool", "confidence": "verified"},
+        {"fact_id": "tools_code_interpreter_sandbox_boundary_f02", "statement": "code_interpreter 默认关闭，skill_runner 默认是 local。", "source_file": "cognition/cognition/config.py", "source_symbol": "Settings.code_interpreter_enabled/skill_runner", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "tools_tool_call_history_repair",
+      "path": "corpus/tools/tool_call_history_repair.md",
+      "title": "Tool-call History 自动修复",
+      "module": "tools",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/graphs/history.py", "cognition/cognition/graphs/nodes.py", "cognition/cognition/graphs/plan_execute.py", "cognition/tests/test_history_repair.py"],
+      "facts": [
+        {"fact_id": "tools_tool_call_history_repair_f01", "statement": "悬空 tool_call 会补充同 ID 的 error ToolMessage。", "source_file": "cognition/cognition/graphs/history.py", "source_symbol": "repair_dangling_tool_calls", "confidence": "verified"},
+        {"fact_id": "tools_tool_call_history_repair_f02", "statement": "孤儿 ToolMessage 会在入模只读投影中被删除。", "source_file": "cognition/cognition/graphs/history.py", "source_symbol": "repair_dangling_tool_calls", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "persistence_postgres_business_and_events",
+      "path": "corpus/persistence/postgres_business_and_events.md",
+      "title": "PostgreSQL 业务状态与事件账本",
+      "module": "persistence",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/store/migrations/0001_runs.sql", "control-plane/internal/store/migrations/0002_events.sql", "control-plane/internal/store/run.go", "control-plane/internal/store/event.go"],
+      "facts": [
+        {"fact_id": "persistence_postgres_business_and_events_f01", "statement": "runs 表保存 run 生命周期、归属、查询、终态摘要和错误。", "source_file": "control-plane/internal/store/migrations/0001_runs.sql", "source_symbol": "table runs", "confidence": "verified"},
+        {"fact_id": "persistence_postgres_business_and_events_f02", "statement": "events 表是以 run_id 和 seq 为主键的 append-only 事件账本。", "source_file": "control-plane/internal/store/migrations/0002_events.sql", "source_symbol": "table events", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "persistence_langgraph_checkpoint_memory_fork",
+      "path": "corpus/persistence/langgraph_checkpoint_memory_fork.md",
+      "title": "LangGraph Checkpoint、会话记忆与分叉",
+      "module": "persistence",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/checkpoint/postgres.py", "cognition/cognition/server/servicer.py", "cognition/cognition/graphs/history.py", "cognition/tests/test_fork_seed.py"],
+      "facts": [
+        {"fact_id": "persistence_langgraph_checkpoint_memory_fork_f01", "statement": "AsyncPostgresSaver 通过连接池初始化并执行 setup 建立 checkpoint 存储。", "source_file": "cognition/cognition/checkpoint/postgres.py", "source_symbol": "build_checkpointer", "confidence": "verified"},
+        {"fact_id": "persistence_langgraph_checkpoint_memory_fork_f02", "statement": "会话分叉按 checkpoint metadata.run_id 定位快照并只播种 messages 通道。", "source_file": "cognition/cognition/server/servicer.py", "source_symbol": "CognitionServicer._seed_forked_thread", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "persistence_minio_artifacts_attachments",
+      "path": "corpus/persistence/minio_artifacts_attachments.md",
+      "title": "MinIO 上传对象与运行产物",
+      "module": "persistence",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/artifact/store.go", "control-plane/internal/api/upload.go", "cognition/cognition/tools/report.py", "cognition/cognition/attachments.py"],
+      "facts": [
+        {"fact_id": "persistence_minio_artifacts_attachments_f01", "statement": "用户上传 key 采用 uploads/{owner}/{session}/{uuid8}-{file} 结构。", "source_file": "control-plane/internal/api/upload.go", "source_symbol": "BuildUploadKey", "confidence": "verified"},
+        {"fact_id": "persistence_minio_artifacts_attachments_f02", "statement": "控制面通过 MinIO Store 的 Put 和 Open 保存及代理读取对象。", "source_file": "control-plane/internal/artifact/store.go", "source_symbol": "Store", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "hitl_approval_interrupt_resume",
+      "path": "corpus/hitl/approval_interrupt_resume.md",
+      "title": "HITL 审批中断与恢复执行",
+      "module": "hitl",
+      "status": "implemented",
+      "source_files": ["cognition/cognition/approval.py", "cognition/cognition/server/servicer.py", "control-plane/internal/api/api.go", "cognition/tests/test_approval.py"],
+      "facts": [
+        {"fact_id": "hitl_approval_interrupt_resume_f01", "statement": "受保护工具在执行原函数之前调用 LangGraph interrupt。", "source_file": "cognition/cognition/approval.py", "source_symbol": "_wrap_one.gate", "confidence": "verified"},
+        {"fact_id": "hitl_approval_interrupt_resume_f02", "statement": "审批决议以字符串传给 Command(resume) 并在同一 session thread 续图。", "source_file": "cognition/cognition/server/servicer.py", "source_symbol": "CognitionServicer._resume_approval", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "hitl_approval_scope_replay_limits",
+      "path": "corpus/hitl/approval_scope_replay_limits.md",
+      "title": "HITL 适用范围与节点重放限制",
+      "module": "hitl",
+      "status": "partial",
+      "source_files": ["cognition/cognition/approval.py", "cognition/cognition/server/grpc_server.py", "cognition/cognition/server/servicer.py", "cognition/tests/test_approval.py"],
+      "facts": [
+        {"fact_id": "hitl_approval_scope_replay_limits_f01", "statement": "审批工具包装只应用于 ReAct 主图，Plan executor 使用原工具列表。", "source_file": "cognition/cognition/server/grpc_server.py", "source_symbol": "serve", "confidence": "verified"},
+        {"fact_id": "hitl_approval_scope_replay_limits_f02", "statement": "未配置 PostgreSQL 时审批使用 InMemorySaver，只能同进程恢复。", "source_file": "cognition/cognition/server/grpc_server.py", "source_symbol": "serve", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "control_plane_grpc_sse_streaming",
+      "path": "corpus/control-plane/grpc_sse_streaming.md",
+      "title": "gRPC 到 SSE 的跨面流式链路",
+      "module": "control-plane",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/cognition/client.go", "control-plane/internal/stream/hub.go", "control-plane/internal/api/sse.go", "proto/agent/v1/agent.proto"],
+      "facts": [
+        {"fact_id": "control_plane_grpc_sse_streaming_f01", "statement": "Hub 使用接收 goroutine 和容量 16 的 channel 消费 gRPC 事件。", "source_file": "control-plane/internal/stream/hub.go", "source_symbol": "Hub.Pump", "confidence": "verified"},
+        {"fact_id": "control_plane_grpc_sse_streaming_f02", "statement": "SSE 内容帧携带 id: seq 并在写入后立即 Flush。", "source_file": "control-plane/internal/api/sse.go", "source_symbol": "sseSink.WriteFrame", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "control_plane_http_api_auth_rbac",
+      "path": "corpus/control-plane/http_api_auth_rbac.md",
+      "title": "HTTP API 身份隔离与 RBAC",
+      "module": "control-plane",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/api/auth.go", "control-plane/internal/api/api.go", "control-plane/internal/store/migrations/0008_users.sql", "control-plane/internal/api/auth_test.go"],
+      "facts": [
+        {"fact_id": "control_plane_http_api_auth_rbac_f01", "statement": "AUTH_REQUIRED 启用时受保护 API 必须提供有效 Bearer token。", "source_file": "control-plane/internal/api/auth.go", "source_symbol": "handlers.resolveIdentity", "confidence": "verified"},
+        {"fact_id": "control_plane_http_api_auth_rbac_f02", "statement": "管理员路由由服务端 requireAdmin 中间件检查 admin 角色。", "source_file": "control-plane/internal/api/auth.go", "source_symbol": "handlers.requireAdmin", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "control_plane_schedules_github_connectors",
+      "path": "corpus/control-plane/schedules_github_connectors.md",
+      "title": "定时任务与 GitHub Proactive 连接器",
+      "module": "control-plane",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/scheduler/scheduler.go", "control-plane/internal/poller/poller.go", "control-plane/internal/connector/github.go", "control-plane/internal/store/migrations/0009_connectors.sql"],
+      "facts": [
+        {"fact_id": "control_plane_schedules_github_connectors_f01", "statement": "调度器认领到期 schedule 后通过现有 Dispatcher 启动 headless run。", "source_file": "control-plane/internal/scheduler/scheduler.go", "source_symbol": "Scheduler.Run", "confidence": "verified"},
+        {"fact_id": "control_plane_schedules_github_connectors_f02", "statement": "GitHub 连接器的 PAT 以 AES-GCM 密文列保存而不是明文。", "source_file": "control-plane/internal/store/migrations/0009_connectors.sql", "source_symbol": "table connectors.token_ciphertext", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "observability_prometheus_metrics",
+      "path": "corpus/observability/prometheus_metrics.md",
+      "title": "Prometheus 指标与运行水位",
+      "module": "observability",
+      "status": "implemented",
+      "source_files": ["control-plane/internal/metrics/metrics.go", "control-plane/internal/dispatch/dispatch.go", "control-plane/internal/stream/hub.go", "control-plane/internal/api/api.go"],
+      "facts": [
+        {"fact_id": "observability_prometheus_metrics_f01", "statement": "控制面使用独立 Prometheus Registry 并在 /metrics 暴露。", "source_file": "control-plane/internal/metrics/metrics.go", "source_symbol": "Metrics.New/Handler", "confidence": "verified"},
+        {"fact_id": "observability_prometheus_metrics_f02", "statement": "指标覆盖 run 并发、拒绝、终态、时长、tokens、模型调用、事件泵、SSE 和调度。", "source_file": "control-plane/internal/metrics/metrics.go", "source_symbol": "Metrics", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "observability_otel_langfuse_grafana",
+      "path": "corpus/observability/otel_langfuse_grafana.md",
+      "title": "OpenTelemetry、Langfuse、Tempo 与 Grafana 边界",
+      "module": "observability",
+      "status": "partial",
+      "source_files": ["control-plane/internal/observability/otel.go", "cognition/cognition/observability/otel_seam.py", "cognition/cognition/observability/langfuse_seam.py", "deploy/observability/README.md"],
+      "facts": [
+        {"fact_id": "observability_otel_langfuse_grafana_f01", "statement": "Go OTel 启用时配置 OTLP/gRPC exporter 和 W3C TraceContext 传播器。", "source_file": "control-plane/internal/observability/otel.go", "source_symbol": "SetupTracing", "confidence": "verified"},
+        {"fact_id": "observability_otel_langfuse_grafana_f02", "statement": "Python OTel 和 Langfuse 在未启用或不可用时降级为 no-op。", "source_file": "cognition/cognition/observability/otel_seam.py", "source_symbol": "setup_tracing/build_server_interceptors", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "deployment_docker_config_infrastructure",
+      "path": "corpus/deployment/docker_config_infrastructure.md",
+      "title": "Docker Compose、配置开关与基础设施用途",
+      "module": "deployment",
+      "status": "partial",
+      "source_files": ["deploy/docker-compose.yml", "deploy/.env.example", "control-plane/internal/config/config.go", "cognition/cognition/config.py"],
+      "facts": [
+        {"fact_id": "deployment_docker_config_infrastructure_f01", "statement": "Compose 的 app profile 启动 control-plane 和 cognition，默认 profile 提供基础设施。", "source_file": "deploy/docker-compose.yml", "source_symbol": "services.control-plane/cognition", "confidence": "verified"},
+        {"fact_id": "deployment_docker_config_infrastructure_f02", "statement": "Compose 定义 PostgreSQL、Qdrant、Redis、MinIO、NATS 和可选 Tempo 服务。", "source_file": "deploy/docker-compose.yml", "source_symbol": "services", "confidence": "verified"}
+      ]
+    },
+    {
+      "document_id": "troubleshooting_failure_modes_known_limits",
+      "path": "corpus/troubleshooting/failure_modes_known_limits.md",
+      "title": "常见故障、降级路径与已知限制",
+      "module": "troubleshooting",
+      "status": "partial",
+      "source_files": ["control-plane/internal/stream/hub.go", "cognition/cognition/server/servicer.py", "cognition/cognition/config.py", "README.md"],
+      "facts": [
+        {"fact_id": "troubleshooting_failure_modes_known_limits_f01", "statement": "Hub 区分客户端断开、运行超时、SSE 写失败、事件错误和 EOF 无终态。", "source_file": "control-plane/internal/stream/hub.go", "source_symbol": "Hub.Pump/Hub.onStreamClosed", "confidence": "verified"},
+        {"fact_id": "troubleshooting_failure_modes_known_limits_f02", "statement": "RAG、rerank、code interpreter、OTel 和审批工具列表均有默认关闭配置。", "source_file": "cognition/cognition/config.py", "source_symbol": "Settings", "confidence": "verified"}
+      ]
+    }
+  ]
+}

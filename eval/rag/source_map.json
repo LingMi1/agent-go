@@ -1,0 +1,121 @@
+{
+  "source_revision": "c04ce65",
+  "documents": {
+    "architecture_dual_plane_system": {
+      "source_files": ["control-plane/cmd/controlplane/main.go", "cognition/cognition/server/grpc_server.py", "proto/agent/v1/agent.proto"],
+      "fact_ids": ["architecture_dual_plane_system_f01", "architecture_dual_plane_system_f02"]
+    },
+    "architecture_event_contract_ledger_replay": {
+      "source_files": ["proto/agent/v1/agent.proto", "control-plane/internal/stream/hub.go", "control-plane/internal/store/event.go", "control-plane/internal/api/api.go"],
+      "fact_ids": ["architecture_event_contract_ledger_replay_f01", "architecture_event_contract_ledger_replay_f02"]
+    },
+    "orchestration_react_graph": {
+      "source_files": ["cognition/cognition/graphs/react.py", "cognition/cognition/graphs/nodes.py", "cognition/cognition/graphs/state.py", "cognition/tests/test_state_routing.py"],
+      "fact_ids": ["orchestration_react_graph_f01", "orchestration_react_graph_f02"]
+    },
+    "orchestration_plan_execute_replan": {
+      "source_files": ["cognition/cognition/graphs/plan_execute.py", "cognition/cognition/graphs/plan_lifecycle.py", "cognition/tests/test_plan_lifecycle.py", "cognition/tests/test_plan_continuation.py"],
+      "fact_ids": ["orchestration_plan_execute_replan_f01", "orchestration_plan_execute_replan_f02"]
+    },
+    "orchestration_send_fanout_concurrency": {
+      "source_files": ["cognition/cognition/graphs/plan_execute.py", "cognition/tests/test_plan_routing.py", "cognition/cognition/config.py"],
+      "fact_ids": ["orchestration_send_fanout_concurrency_f01", "orchestration_send_fanout_concurrency_f02"]
+    },
+    "orchestration_run_admission_cancellation": {
+      "source_files": ["control-plane/internal/dispatch/dispatch.go", "control-plane/internal/api/api.go", "control-plane/internal/stream/hub.go", "control-plane/internal/config/config.go"],
+      "fact_ids": ["orchestration_run_admission_cancellation_f01", "orchestration_run_admission_cancellation_f02"]
+    },
+    "retrieval_agentic_rag_graph": {
+      "source_files": ["cognition/cognition/rag/graph.py", "cognition/cognition/rag/types.py", "cognition/tests/test_rag_graph_fake.py"],
+      "fact_ids": ["retrieval_agentic_rag_graph_f01", "retrieval_agentic_rag_graph_f02"]
+    },
+    "retrieval_dense_sparse_rrf": {
+      "source_files": ["cognition/cognition/rag/store.py", "cognition/cognition/rag/retriever.py", "cognition/tests/test_rag_store_memory.py", "cognition/tests/test_rag_retriever.py"],
+      "fact_ids": ["retrieval_dense_sparse_rrf_f01", "retrieval_dense_sparse_rrf_f02"]
+    },
+    "retrieval_query_rewrite_reflect": {
+      "source_files": ["cognition/cognition/rag/graph.py", "cognition/cognition/rag/expand.py", "cognition/cognition/rag/reflect.py", "cognition/tests/test_rag_reflect.py"],
+      "fact_ids": ["retrieval_query_rewrite_reflect_f01", "retrieval_query_rewrite_reflect_f02"]
+    },
+    "retrieval_ingestion_chunking_idempotency": {
+      "source_files": ["cognition/cognition/rag/ingest.py", "cognition/cognition/rag/chunking.py", "cognition/cognition/attachments.py", "cognition/tests/test_rag_ingest_idempotent.py"],
+      "fact_ids": ["retrieval_ingestion_chunking_idempotency_f01", "retrieval_ingestion_chunking_idempotency_f02"]
+    },
+    "retrieval_rerank_citations_providers": {
+      "source_files": ["cognition/cognition/rag/reranker.py", "cognition/cognition/rag/rerank.py", "cognition/cognition/rag/citation.py", "cognition/cognition/rag/factory.py"],
+      "fact_ids": ["retrieval_rerank_citations_providers_f01", "retrieval_rerank_citations_providers_f02"]
+    },
+    "retrieval_kb_isolation_and_management": {
+      "source_files": ["cognition/cognition/server/servicer.py", "cognition/cognition/tools/knowledge_search.py", "cognition/cognition/rag/store.py", "control-plane/internal/kb/kb.go"],
+      "fact_ids": ["retrieval_kb_isolation_and_management_f01", "retrieval_kb_isolation_and_management_f02"]
+    },
+    "tools_unified_registry": {
+      "source_files": ["cognition/cognition/tools/registry.py", "cognition/cognition/mcp/naming.py", "cognition/cognition/events/mapper.py", "cognition/tests/test_tool_provider_mapping.py"],
+      "fact_ids": ["tools_unified_registry_f01", "tools_unified_registry_f02"]
+    },
+    "tools_mcp_transports_lifecycle": {
+      "source_files": ["cognition/cognition/mcp/config.py", "cognition/cognition/mcp/connection.py", "cognition/cognition/mcp/registry.py", "cognition/tests/test_mcp_registry_fake.py"],
+      "fact_ids": ["tools_mcp_transports_lifecycle_f01", "tools_mcp_transports_lifecycle_f02"]
+    },
+    "tools_skill_disclosure_runner": {
+      "source_files": ["cognition/cognition/skills/registry.py", "cognition/cognition/skills/disclosure.py", "cognition/cognition/skills/tools.py", "cognition/cognition/skills/runner/request.py"],
+      "fact_ids": ["tools_skill_disclosure_runner_f01", "tools_skill_disclosure_runner_f02"]
+    },
+    "tools_code_interpreter_sandbox_boundary": {
+      "source_files": ["cognition/cognition/tools/code_interpreter.py", "cognition/cognition/skills/runner/docker.py", "cognition/cognition/skills/runner/local.py", "cognition/cognition/config.py"],
+      "fact_ids": ["tools_code_interpreter_sandbox_boundary_f01", "tools_code_interpreter_sandbox_boundary_f02"]
+    },
+    "tools_tool_call_history_repair": {
+      "source_files": ["cognition/cognition/graphs/history.py", "cognition/cognition/graphs/nodes.py", "cognition/cognition/graphs/plan_execute.py", "cognition/tests/test_history_repair.py"],
+      "fact_ids": ["tools_tool_call_history_repair_f01", "tools_tool_call_history_repair_f02"]
+    },
+    "persistence_postgres_business_and_events": {
+      "source_files": ["control-plane/internal/store/migrations/0001_runs.sql", "control-plane/internal/store/migrations/0002_events.sql", "control-plane/internal/store/run.go", "control-plane/internal/store/event.go"],
+      "fact_ids": ["persistence_postgres_business_and_events_f01", "persistence_postgres_business_and_events_f02"]
+    },
+    "persistence_langgraph_checkpoint_memory_fork": {
+      "source_files": ["cognition/cognition/checkpoint/postgres.py", "cognition/cognition/server/servicer.py", "cognition/cognition/graphs/history.py", "cognition/tests/test_fork_seed.py"],
+      "fact_ids": ["persistence_langgraph_checkpoint_memory_fork_f01", "persistence_langgraph_checkpoint_memory_fork_f02"]
+    },
+    "persistence_minio_artifacts_attachments": {
+      "source_files": ["control-plane/internal/artifact/store.go", "control-plane/internal/api/upload.go", "cognition/cognition/tools/report.py", "cognition/cognition/attachments.py"],
+      "fact_ids": ["persistence_minio_artifacts_attachments_f01", "persistence_minio_artifacts_attachments_f02"]
+    },
+    "hitl_approval_interrupt_resume": {
+      "source_files": ["cognition/cognition/approval.py", "cognition/cognition/server/servicer.py", "control-plane/internal/api/api.go", "cognition/tests/test_approval.py"],
+      "fact_ids": ["hitl_approval_interrupt_resume_f01", "hitl_approval_interrupt_resume_f02"]
+    },
+    "hitl_approval_scope_replay_limits": {
+      "source_files": ["cognition/cognition/approval.py", "cognition/cognition/server/grpc_server.py", "cognition/cognition/server/servicer.py", "cognition/tests/test_approval.py"],
+      "fact_ids": ["hitl_approval_scope_replay_limits_f01", "hitl_approval_scope_replay_limits_f02"]
+    },
+    "control_plane_grpc_sse_streaming": {
+      "source_files": ["control-plane/internal/cognition/client.go", "control-plane/internal/stream/hub.go", "control-plane/internal/api/sse.go", "proto/agent/v1/agent.proto"],
+      "fact_ids": ["control_plane_grpc_sse_streaming_f01", "control_plane_grpc_sse_streaming_f02"]
+    },
+    "control_plane_http_api_auth_rbac": {
+      "source_files": ["control-plane/internal/api/auth.go", "control-plane/internal/api/api.go", "control-plane/internal/store/migrations/0008_users.sql", "control-plane/internal/api/auth_test.go"],
+      "fact_ids": ["control_plane_http_api_auth_rbac_f01", "control_plane_http_api_auth_rbac_f02"]
+    },
+    "control_plane_schedules_github_connectors": {
+      "source_files": ["control-plane/internal/scheduler/scheduler.go", "control-plane/internal/poller/poller.go", "control-plane/internal/connector/github.go", "control-plane/internal/store/migrations/0009_connectors.sql"],
+      "fact_ids": ["control_plane_schedules_github_connectors_f01", "control_plane_schedules_github_connectors_f02"]
+    },
+    "observability_prometheus_metrics": {
+      "source_files": ["control-plane/internal/metrics/metrics.go", "control-plane/internal/dispatch/dispatch.go", "control-plane/internal/stream/hub.go", "control-plane/internal/api/api.go"],
+      "fact_ids": ["observability_prometheus_metrics_f01", "observability_prometheus_metrics_f02"]
+    },
+    "observability_otel_langfuse_grafana": {
+      "source_files": ["control-plane/internal/observability/otel.go", "cognition/cognition/observability/otel_seam.py", "cognition/cognition/observability/langfuse_seam.py", "deploy/observability/README.md"],
+      "fact_ids": ["observability_otel_langfuse_grafana_f01", "observability_otel_langfuse_grafana_f02"]
+    },
+    "deployment_docker_config_infrastructure": {
+      "source_files": ["deploy/docker-compose.yml", "deploy/.env.example", "control-plane/internal/config/config.go", "cognition/cognition/config.py"],
+      "fact_ids": ["deployment_docker_config_infrastructure_f01", "deployment_docker_config_infrastructure_f02"]
+    },
+    "troubleshooting_failure_modes_known_limits": {
+      "source_files": ["control-plane/internal/stream/hub.go", "cognition/cognition/server/servicer.py", "cognition/cognition/config.py", "README.md"],
+      "fact_ids": ["troubleshooting_failure_modes_known_limits_f01", "troubleshooting_failure_modes_known_limits_f02"]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "started_utc": "2026-07-11T09:33:00.529466+00:00",
+  "finished_utc": "2026-07-11T12:30:15.312418+00:00",
+  "duration_s": 10634.8,
+  "git_commit": "8a5f78037d121e34a8f746a7f981db9cd42271d4",
+  "git_dirty_tracked": false,
+  "questions_file": "questions_verified.jsonl",
+  "questions_sha256": "ea6434add4ca7869",
+  "chunks_sha256": "187ae20a1f459b78",
+  "n_questions": 59,
+  "n_chunks": 58,
+  "collection": "eval_rag_bench_v1",
+  "kb_id": "eval_rag_v1",
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "embedding_dimension": 512,
+  "sparse_model": "Qdrant/bm25",
+  "fusion": "Qdrant native FusionQuery(Fusion.RRF), prefetch=20/路",
+  "top_k": 10,
+  "rerank_enabled": false,
+  "rag_reflection_limit": 2,
+  "rag_subquery_max": 3,
+  "llm_model": "deepseek-v4-pro",
+  "llm_temperature": 0,
+  "llm_base_url": "https://api.deepseek.com",
+  "runs": {
+    "dense_only": 3,
+    "sparse_only": 3,
+    "hybrid_rrf": 3,
+    "full_agentic_rag": 3
+  },
+  "python": "3.13.5",
+  "pythonhashseed": "0",
+  "platform": "macOS-15.3.1-arm64-arm-64bit-Mach-O",
+  "packages": {
+    "qdrant-client": "1.18.0",
+    "fastembed": "0.8.0",
+    "langgraph": "1.2.7",
+    "langchain-core": "1.4.8",
+    "langchain-deepseek": "1.1.0"
+  },
+  "qdrant_server_version": "1.12.4",
+  "notes": [
+    "dense_only/sparse_only 为消融配置：单路 query_points，其余参数与生产一致",
+    "full_agentic_rag 的 ranked 取子图累计去重 docs 的生产顺序（首次出现序），reranked/sources 为进入生成的 top-k",
+    "qdrant-client 1.18 对 server 1.12 有版本告警，功能已验证正常",
+    "指标全部由 eval_metrics.py 计算（含单测），报告由 render_report.py 从 metrics.json 渲染"
+  ]
+}

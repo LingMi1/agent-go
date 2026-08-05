@@ -1,0 +1,64 @@
+[project]
+name = "my-agent-cognition"
+version = "0.1.0"
+description = "my-agent 认知面：LangGraph 编排 + Agentic RAG + 工具/技能/记忆/模型路由"
+requires-python = ">=3.12"
+
+# 依赖在各里程碑落地时启用并锁定版本；此处声明计划内主要依赖与用途。
+dependencies = [
+    "langgraph>=0.2",              # 编排：图 / checkpoint / Send 扇出 / interrupt / Store
+    "langgraph-checkpoint-postgres>=2.0",  # PostgreSQL checkpointer（可恢复执行/状态）
+    "langchain-core>=0.3",         # 工具/消息抽象
+    "fastapi>=0.115",              # 服务外壳
+    "uvicorn>=0.30",
+    "grpcio>=1.66",                # 对 Go 控制面的 gRPC 流式
+    "grpcio-tools>=1.66",
+    "qdrant-client>=1.12",         # 向量库：dense + sparse 混合检索
+    "minio>=7.2",                  # 对象存储客户端：artifact 产物落 MinIO
+    "mcp>=1.0",                    # MCP 官方 Python SDK（三传输）
+    "psycopg[binary]>=3.2",        # PostgreSQL 驱动
+    "pydantic>=2.9",               # State / 事件 schema
+    "httpx>=0.27",                 # 外部 HTTP（rerank / 生图 等）
+    "anthropic>=0.39",             # Claude（底层 SDK，生图等也可直用）
+    "openai>=1.50",                # DeepSeek（OpenAI 兼容）/ 可选生图
+    "langchain-anthropic>=0.3",    # Claude 的 LangChain 封装：bind_tools + 规范 on_chat_model_* 事件
+    "langchain-openai>=0.3",       # DeepSeek(OpenAI 兼容) 的 LangChain 封装
+    "grpcio-health-checking>=1.81.1",
+    "langchain-deepseek>=1.1.0",
+    "pypdf>=6.14.2",
+    "fastembed>=0.8.0",
+    "python-docx>=1.2.0",
+    "openpyxl>=3.1.5",
+    "pypdfium2>=4.30",             # C批(docs/13)：扫描 PDF 页栅格化（自带 pdfium wheel，零系统依赖）
+    "pillow>=10",                  # C批(docs/13)：栅格位图→PNG/JPEG 编码（原为 fastembed 传递依赖，显式化）
+    "pdfplumber>=0.11.10",       # D1批(docs/15)：PDF 文本页结构化提取（表格/多栏，带入纯 Python pdfminer.six，零系统依赖）
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+# 技能脚本依赖组（data-analysis/chart/ppt）：`uv sync --extra skills`。
+# local runner 用 venv 解释器执行 .py 故装此即生效；docker runner 走 skill-executor 镜像。
+skills = [
+    "duckdb>=1.0",
+    "matplotlib>=3.8",
+    "python-pptx>=1.0",
+]
+# OTel 追踪组（docs/18）：`uv sync --extra otel` 才装；不入核心 deps，保 import-guard——
+# 默认离线（未装）时 otel_seam 走 no-op 降级路径，既有测试零回归。
+otel = [
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+    "opentelemetry-exporter-otlp>=1.27",
+    "opentelemetry-instrumentation-grpc>=0.48b0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]

@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# 技能脚本执行镜像（DockerScriptRunner 用，COGNITION_SKILL_RUNNER=docker 时生效）。
+# 与认知面镜像分离：这是不可信脚本的隔离边界（--network none/--read-only/资源限制
+# 由 runner 的 docker run 参数施加）；此处只提供解释器与技能依赖。
+# 构建：docker build -f deploy/Dockerfile.skill-executor -t my-agent/skill-executor:latest .
+FROM python:3.12-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends nodejs bash fonts-noto-cjk \
+ && rm -rf /var/lib/apt/lists/*
+
+# 技能依赖与 cognition 的 skills 可选组保持同源（数据分析/图表/PPT）。
+RUN pip install --no-cache-dir duckdb matplotlib python-pptx
+
+# matplotlib 缓存目录由 runner 以 --tmpfs /tmp + MPLCONFIGDIR=/tmp 提供（--read-only 下唯一可写处）。
+RUN useradd -m runner
+USER runner

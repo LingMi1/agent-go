@@ -1,0 +1,188 @@
+# agent-go 编排：基础设施（默认 profile）+ 业务服务（profile "app"）。
+# 用法：
+#   仅基础设施（host 进程开发流，make infra-up）：docker compose up -d
+#   一键起完整平台（含控制面/认知面，前端由控制面单端口托管）：
+#     docker compose --profile app up -d --build   （即 make stack-up）
+# 业务服务挂 profile "app"：保证 make infra-up 语义不变（不触发镜像构建）。
+
+services:
+  control-plane:
+    # Go 控制面：唯一对外端口，托管 web/dist（SPA）+ API/SSE。
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.control-plane
+    container_name: my-agent-control-plane
+    # 不挂 env_file：控制面不需要、也不应拿到 LLM API 密钥。
+    # 集群内端点显式钉死（.env 里的 localhost DSN 是给 host 进程用的，进容器必错）。
+    environment:
+      PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent_pwd}@postgres:5432/${POSTGRES_DB:-my_agent}
+      COGNITION_ADDR: cognition:50051
+      MINIO_ENDPOINT: minio:9000
+      QDRANT_URL: http://qdrant:6333 # UX-1 知识库管理（Files 面板读/删直连）
+      WEB_DIR: /app/web
+      # OTel 追踪（docs/18，默认关）：OTEL_ENABLED=1 起 profile observability 一并冒烟；
+      # 端点指向同网 tempo（Go 依赖已编入镜像，开箱即导出 agent.run 根 span）。
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      OTEL_SERVICE_NAME: my-agent-control-plane
+      BOOTSTRAP_ADMIN_USER: admin
+      BOOTSTRAP_ADMIN_PASSWORD: admin123
+    ports:
+      - "${CONTROL_PLANE_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      cognition:
+        condition: service_healthy
+
+  cognition:
+    # Python 认知面：内部 gRPC，不对外发布端口。
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.cognition
+    container_name: my-agent-cognition
+    # env_file 提供 LLM API 密钥（仅运行时注入，.dockerignore 保证不进镜像层）；
+    # environment 显式重钉全部集群内端点与容器内路径（覆盖 env_file 的 host 值）。
+    env_file: .env
+    environment:
+      COGNITION_PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent_pwd}@postgres:5432/${POSTGRES_DB:-my_agent}
+      COGNITION_QDRANT_URL: http://qdrant:6333
+      MINIO_ENDPOINT: minio:9000
+      COGNITION_MINIO_UPLOAD_ENABLED: "true"
+      COGNITION_SKILLS_DIRS: '["/src/cognition/examples/skills", "/src/cognition/runtime/skills"]'
+      COGNITION_SKILL_RUNNER: local # 容器内不做 DinD；真沙箱运行器属后续拓展
+      COGNITION_FAKE_MODEL: ${COGNITION_FAKE_MODEL:-0} # shell 变量优先于 .env（冒烟：COGNITION_FAKE_MODEL=1 make stack-up）
+      # OTel 追踪（docs/18，默认关）：拦截器建 server span，接 Go 的 traceparent 续同一 trace。
+      # 注意：认知面基础镜像不含 opentelemetry（otel 属 pyproject optional 组）；启用后
+      # otel_seam import-guard 降级为 no-op（server span 不产），需在镜像内 `uv sync --extra otel`
+      # 才真正导出 Python server span（见 observability/README.md「认知面追踪」）。
+      COGNITION_OTEL_ENABLED: ${OTEL_ENABLED:-false}
+      COGNITION_OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
+      COGNITION_OTEL_SERVICE_NAME: my-agent-cognition
+    expose:
+      - "50051"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 50051), 2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+
+  postgres:
+    # 业务数据 + 执行事件账本 + LangGraph checkpoint
+    image: postgres:16
+    container_name: my-agent-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_pwd}
+      POSTGRES_DB: ${POSTGRES_DB:-my_agent}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agent}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    # 向量库：dense + sparse 混合检索
+    image: qdrant/qdrant:v1.12.4
+    container_name: my-agent-qdrant
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - ./volumes/qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    # 缓存 / 限流 / 流式 pub-sub 扇出
+    image: redis:7-alpine
+    container_name: my-agent-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ./volumes/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    # 对象存储：artifact 文件（报告/图片/脚本产物）
+    image: minio/minio:RELEASE.2024-10-13T13-34-11Z
+    container_name: my-agent-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - ./volumes/minio:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  nats:
+    # 事件总线（为 Proactive 连接器/事件驱动预留；开启 JetStream 持久化）
+    image: nats:2.10-alpine
+    container_name: my-agent-nats
+    command: ["-js", "-sd", "/data"]
+    ports:
+      - "${NATS_PORT:-4222}:4222"
+    volumes:
+      - ./volumes/nats:/data
+
+  tempo:
+    # 分布式追踪后端（docs/18 §3.2）：原生 OTLP receiver，两面服务直连导出，无 collector 中转。
+    # 挂 profile "observability"：默认 `up` / `--profile app` 都不起它（trace 是可选开关）。
+    #   起法：docker compose --profile app --profile observability up -d
+    #   开导出：OTEL_ENABLED=1 docker compose --profile app --profile observability up -d
+    profiles: ["observability"]
+    image: grafana/tempo:2.6.1
+    container_name: my-agent-tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ./volumes/tempo:/var/tempo
+    ports:
+      - "${TEMPO_HTTP_PORT:-3200}:3200" # 查询 API（global-grafana 经 host.docker.internal:3200 加 Tempo datasource）
+      - "${TEMPO_OTLP_GRPC_PORT:-4317}:4317" # OTLP/gRPC（host 进程 make control/cognition 亦可导出到此）
+      - "${TEMPO_OTLP_HTTP_PORT:-4318}:4318" # OTLP/HTTP（备用）
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3200/ready | grep -q ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  default:
+    name: my-agent-net

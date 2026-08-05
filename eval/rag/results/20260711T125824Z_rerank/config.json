@@ -1,0 +1,28 @@
+{
+  "started_utc": "2026-07-11T12:58:24.835726+00:00",
+  "finished_utc": "2026-07-11T13:04:29.641572+00:00",
+  "duration_s": 364.8,
+  "git_commit": "f370343a3ff7d46100119b95688162254108e125",
+  "baseline_results": "20260711T093300Z",
+  "baseline_git_commit": "8a5f78037d121e34a8f746a7f981db9cd42271d4",
+  "questions_sha256": "ea6434add4ca7869",
+  "chunks_sha256": "187ae20a1f459b78",
+  "collection": "eval_rag_bench_v1",
+  "kb_id": "eval_rag_v1",
+  "top_k": 10,
+  "embedding_model": "BAAI/bge-small-zh-v1.5",
+  "embedding_dimension": 512,
+  "sparse_model": "Qdrant/bm25",
+  "rerank_model": "BAAI/bge-reranker-v2-m3",
+  "rerank_base_url": "https://api.siliconflow.cn/v1",
+  "rerank_thresholds": [
+    0.0,
+    0.3
+  ],
+  "notes": [
+    "hybrid_rrf_rerank：生产 Retriever top-10 → ApiReranker → order_by_score，实跑 3 次",
+    "full_agentic_rag_rerank_offline：对基线已保存的累计检索结果离线执行图内同一 rerank 后处理（rerank 不影响 reflect 循环，逐位等价）；其延迟=基线子图延迟+实测 rerank 调用延迟（估算口径）",
+    "_t03 后缀为 threshold=0.3 消融（config.py 注释建议值）；主口径 threshold=0.0 与 deploy/.env 一致",
+    "rerank API key 仅从环境变量读取，不写入任何输出文件"
+  ]
+}

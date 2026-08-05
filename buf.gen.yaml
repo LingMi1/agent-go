@@ -1,0 +1,13 @@
+version: v2
+# Go stub 生成：本地插件（protoc-gen-go / protoc-gen-go-grpc，经 `make proto-tools` 安装）。
+# source_relative + go_package 中的完整路径 → 生成文件落在
+# control-plane/internal/genproto/agent/v1/，其物理位置与导入路径一致。
+plugins:
+  - local: protoc-gen-go
+    out: control-plane/internal/genproto
+    opt:
+      - paths=source_relative
+  - local: protoc-gen-go-grpc
+    out: control-plane/internal/genproto
+    opt:
+      - paths=source_relative

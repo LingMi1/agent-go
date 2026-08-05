@@ -1,0 +1,163 @@
+syntax = "proto3";
+
+package agent.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "my-agent/control-plane/internal/genproto/agent/v1;agentv1";
+
+// 认知服务：一次 run = 一个 server-streaming RPC，流的顺序即事件顺序。
+// 客户端（Go 控制面）取消 ctx → 该 RPC 被取消（CANCELLED）→ Python 取消图执行。
+service CognitionService {
+  rpc Run(RunRequest) returns (stream Event);
+  // —— UX-1 加性扩展（仍 v1）：Files 面板"上传即入库"（不经对话轮）。
+  // 入库必须走认知面：embedding/分块是认知域能力，Go 不持向量化逻辑。
+  // 读/删走 Go 直连 Qdrant REST（纯管理读写，无向量化，见 control-plane/internal/kb）。
+  rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentResponse);
+}
+
+message IngestDocumentRequest {
+  string owner_id = 1;       // 归属（服务端定 kb=owner:{owner_id}，客户端不可指定 kb）
+  Attachment attachment = 2; // 已上传对象引用（Go 侧已校验 key 归属）
+}
+
+message IngestDocumentResponse {
+  bool ok = 1;
+  string kb_id = 2;
+  string message = 3; // 失败原因/跳过原因（非文本类等）
+}
+
+message RunRequest {
+  string run_id = 1;                 // Go 生成的 UUID，run 的规范身份（事件归属）
+  string session_id = 2;             // 会话/归属 + LangGraph thread 作用域
+  string query = 3;                  // 用户输入
+  string agent_type = 4;             // 本阶段 "react"
+  int32 max_steps = 5;               // ReAct 循环上限
+  map<string, string> metadata = 6;  // trace_id / locale / owner_id 等（扁平）
+  string schema_version = 7;         // "v1"
+  // —— M8 加性扩展（仍 v1，线兼容：旧端忽略高编号字段即降级）——
+  // 已上传附件的引用（字节不过 gRPC：认知面持 MinIO 凭据按 key 直读，
+  // 可任意时刻重读；Go 侧已校验 key 归属 uploads/{owner}/ 前缀）。
+  repeated Attachment attachments = 8;
+}
+
+// 上传附件引用（对象存储 key + 展示元信息）。与 ArtifactRef 的区别：
+// ArtifactRef 是"运行产物"（含预览/下载 URL，事件流出）；Attachment 是"用户输入"
+// （仅入参引用，不进事件流——用户气泡由前端自渲染）。
+message Attachment {
+  string resource_key = 1; // uploads/{owner}/{session}/{uuid8}-{fileName}
+  string file_name = 2;
+  string mime_type = 3;
+  int64 size = 4;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_TOOL_THOUGHT = 1;
+  EVENT_TYPE_TOOL_CALL = 2;
+  EVENT_TYPE_TOOL_RESULT = 3;
+  EVENT_TYPE_RESULT = 4;
+  // —— Plan-Execute 加性扩展（仍 v1，线兼容）——
+  EVENT_TYPE_PLAN_THOUGHT = 5; // 规划器思考（复用 ThoughtPayload，带 planner_round_id）
+  EVENT_TYPE_PLAN = 6;         // 计划快照（PlanPayload）
+  EVENT_TYPE_TASK = 7;         // 单个 <sep> 子任务（TaskPayload）
+  // —— M11 HITL 加性扩展（仍 v1）——
+  EVENT_TYPE_APPROVAL_REQUEST = 8; // 人工审批请求（ApprovalPayload；finish 恒 false——审批=run 边界）
+  // heartbeat 不在此：网关注入的传输关注点，不过 gRPC、不入库、不参与重放比对。
+}
+
+enum ToolCallStatus {
+  TOOL_CALL_STATUS_UNSPECIFIED = 0;
+  TOOL_CALL_STATUS_RUNNING = 1;
+  TOOL_CALL_STATUS_SUCCESS = 2;
+  TOOL_CALL_STATUS_FAILED = 3;
+}
+
+message Event {
+  uint64 seq = 1;          // 每 run 单调、无空洞、从 1；由 Python（因果源）分配
+  string run_id = 2;
+  string message_id = 3;   // 原位更新键；TOOL_CALL 时 == tool_call_id
+  EventType type = 4;
+  int64 ts_unix_ms = 5;    // Python 发射时间 → SSE messageTime
+  bool is_final = 6;       // 本条消息终态
+  bool finish = 7;         // 整个 run 终态；仅 RESULT 为 true
+  string step = 8;         // ReAct 步序/节点名（可观测）
+
+  oneof payload {
+    ThoughtPayload tool_thought = 16; // 也用于 PLAN_THOUGHT（按 type 区分）
+    ToolPayload tool_call = 17;   // RUNNING / SUCCESS / FAILED
+    ToolPayload tool_result = 18; // 复用同结构，携带 observation + artifacts
+    ResultPayload result = 19;
+    PlanPayload plan = 20;
+    TaskPayload task = 21;
+    ApprovalPayload approval = 22; // M11 HITL
+  }
+}
+
+message ThoughtPayload {
+  string text = 1;
+  string planner_round_id = 2; // 仅 plan_thought 填写；executor 的 tool_thought 留空
+}
+
+// 计划快照（plan 事件）：steps/step_status/notes 并行索引。
+message PlanPayload {
+  string title = 1;
+  repeated string steps = 2;
+  repeated string step_status = 3; // not_started | in_progress | completed | blocked
+  repeated string notes = 4;
+  string planner_round_id = 5;
+}
+
+// 单个子任务（task 事件，由 currentStep 按 "<sep>" 切分而来）。
+message TaskPayload {
+  string text = 1;
+}
+
+message ToolPayload {
+  string tool_call_id = 1;          // == Event.message_id（TOOL_CALL）
+  string tool_name = 2;
+  string tool_provider = 3;         // 本阶段 "local"
+  ToolCallStatus status = 4;        // running → success | failed
+  int32 dispatch_index = 5;         // 同一轮内工具顺序
+  google.protobuf.Struct input = 6; // 解析后的参数对象（非字符串）
+  string tool_result = 7;           // observation 文本（TOOL_RESULT 用）
+  string summary = 8;               // "正在调用 X" / "X 调用完成" / "X 调用失败"
+  string error_msg = 9;             // FAILED 时
+  repeated ArtifactRef artifact_refs = 10;
+}
+
+// M11 · 人工审批请求：受保护工具在执行前经 LangGraph interrupt 挂起，
+// run 以"审批=run 边界"收尾（本事件 finish=false + 随后的挂起 RESULT finish=true）；
+// 决议经 POST /runs/{id}/approvals 以 resume metadata 开新 run 继续（PG checkpoint 续图）。
+message ApprovalPayload {
+  string approval_id = 1;                    // 挂起时生成，checkpoint 持久（重放重生成值不外泄）
+  string tool_name = 2;                      // 受保护工具名
+  google.protobuf.Struct input = 3;          // 工具入参预览（用户据此决策）
+  string reason = 4;                         // 为什么需要审批（配置说明）
+  repeated string pending_tool_call_ids = 5; // run1 中已发 RUNNING 的工具卡（前端翻"待审批"防孤儿转圈）
+}
+
+// M11 · 累计 token 用量（mapper 全 run 聚合，随终态 RESULT 附带；Go 落 runs 表）。
+message UsageInfo {
+  int64 input_tokens = 1;
+  int64 output_tokens = 2;
+  int32 model_calls = 3;
+}
+
+message ResultPayload {
+  string text = 1;                       // 最终答复
+  repeated ArtifactRef artifact_refs = 2;
+  UsageInfo usage = 3;                   // M11 加性；缺省=旧端零值
+}
+
+// 沿用原项目 8 字段形状：artifact UI 零改、缺文件降级显式。
+message ArtifactRef {
+  string resource_key = 1;
+  string name = 2;
+  string preview_url = 3;
+  string download_url = 4;
+  string file_name = 5;
+  string mime_type = 6;
+  int64 size = 7;
+  bool missing = 8;
+}

@@ -1,0 +1,25 @@
+# 镜像构建上下文=仓库根（compose 的 build.context: ..）。
+# 密钥绝不进上下文：deploy/.env 在此排除，密钥只经运行时 env_file/environment 注入。
+.git
+docs/
+CLAUDE.md
+PLAN_STATUS.md
+.claude/
+deploy/volumes/
+deploy/.env
+
+# 前端：dist 在镜像内构建；node_modules 由 npm ci 装
+web/node_modules/
+web/dist/
+web/tsconfig.tsbuildinfo
+
+# Python：venv 在镜像内由 uv sync 建
+cognition/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+
+# 生成物 stub 不入上下文——强制镜像内用钉住的工具链再生成（与 .gitignore 一致）
+control-plane/internal/genproto/
+cognition/cognition/genproto/
+control-plane/bin/

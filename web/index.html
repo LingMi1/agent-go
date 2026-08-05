@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agent-go</title>
+    <script>
+      // 防闪烁：React 挂载前按持久化偏好挂 dark class（与 src/lib/uiPrefs.ts 的 key/字段一致）
+      try {
+        var prefs = JSON.parse(localStorage.getItem("my-agent.ui") || "{}");
+        if (prefs.theme === "dark") document.documentElement.classList.add("dark");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

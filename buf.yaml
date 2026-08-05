@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: proto
+lint:
+  use:
+    - STANDARD
+  except:
+    # 本 RPC 流式返回领域事件 Event（事件流），而非单一 RunResponse 信封；
+    # 这是有意的契约形态，故豁免“响应须命名为 RunResponse”这一条。
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

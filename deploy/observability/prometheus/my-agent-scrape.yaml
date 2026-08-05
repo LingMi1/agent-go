@@ -1,0 +1,19 @@
+# Prometheus scrape job 片段（docs/18 §3.3）——抓 Go 控制面的 /metrics（myagent_ 指标）。
+# 把下面的 job 追加进你 global-prometheus 的 prometheus.yml 的 scrape_configs:（照现有
+# host.docker.internal 抓 host 端口的范式）。控制面 /metrics 只暴露自有 Registry（无
+# go_collector 噪声，见 internal/metrics/metrics.go）。
+#
+#   scrape_configs:
+#     - <你现有的 jobs...>
+#     - <把下面这段贴进来>
+
+- job_name: my-agent
+  metrics_path: /metrics
+  scrape_interval: 15s
+  static_configs:
+    # global-prometheus 在 global-network，控制面在 my-agent-net：跨网络经宿主机端口。
+    # 控制面单端口对外（默认 8080），/metrics 与 API/SSE 同端口。若改了 CONTROL_PLANE_PORT
+    # 或用 host 进程（make control）跑在别的端口，改这里。
+    - targets: ["host.docker.internal:8080"]
+      labels:
+        service: my-agent-control-plane

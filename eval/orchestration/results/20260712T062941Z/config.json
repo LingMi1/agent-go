@@ -1,0 +1,66 @@
+{
+  "started_utc": "2026-07-12T06:29:41.050140+00:00",
+  "git_commit": "4bb843986f129ef9d5fcc9452165261c4d879c11",
+  "git_dirty_tracked": true,
+  "tasks_file": "tasks.jsonl",
+  "tasks_sha256": "3e7d18abefa0d688362c9c64c0b5da86fbe5de3525da90213396f66c6cb2b34b",
+  "task_count": 20,
+  "dependency_distribution": {
+    "independent": 16,
+    "partially_dependent": 4
+  },
+  "corpus_file": "eval/orchestration/corpus.jsonl",
+  "corpus_sha256": "11d6f70f79c983414c4155dd011095a531d0f039e020248a1a628b7839e19526",
+  "corpus_chunks": 20,
+  "qdrant_collection": "eval_orchestration_bench_v1",
+  "kb_id": "eval_orchestration_v1",
+  "model": "deepseek-v4-pro",
+  "temperature": 0,
+  "sdk_max_retries": 0,
+  "explicit_retry_delays_s": [
+    1.0,
+    2.0
+  ],
+  "concurrencies": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "formal_runs_per_task_config": 3,
+  "warmups_per_task_config": 1,
+  "schedule_seed": 20260711,
+  "pricing": {
+    "currency": "USD",
+    "input_cache_hit_per_million": 0.003625,
+    "input_cache_miss_per_million": 0.435,
+    "output_per_million": 0.87,
+    "source": "https://api-docs.deepseek.com/quick_start/pricing?article_id=article_1779470751466_8",
+    "retrieved_on": "2026-07-11"
+  },
+  "branch_timeout_s": 300.0,
+  "run_timeout_formula": "60s planner slack + sum_rounds(ceil(branches/concurrency))*300s",
+  "minio_upload_enabled": false,
+  "docker_clock_offset_s": 0,
+  "python": "3.13.5",
+  "platform": "macOS-15.3.1-arm64-arm-64bit-Mach-O",
+  "packages": {
+    "langgraph": "1.2.7",
+    "langchain-core": "1.4.8",
+    "langchain-deepseek": "1.1.0",
+    "qdrant-client": "1.18.0",
+    "fastembed": "0.8.0"
+  },
+  "official_complete": true,
+  "secrets_recorded": false,
+  "finished_utc": "2026-07-13T00:03:29.235527+00:00",
+  "recorded_runs": 320,
+  "skipped_tasks_frozen_invalid": [],
+  "billing_outage": {
+    "window_start_utc": "2026-07-12T15:24:30.305816+00:00",
+    "window_end_utc": "2026-07-12T15:26:37.294940+00:00",
+    "quarantined_runs": 21,
+    "quarantine_file": "billing_outage_quarantine.jsonl",
+    "note": "DeepSeek 账户余额耗尽(402)导致的失败运行,与并发配置无关;记录完整保留于隔离文件,对应键已补跑"
+  }
+}

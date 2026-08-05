@@ -1,0 +1,52 @@
+{
+  "started_utc": "2026-07-11T16:46:26.576661+00:00",
+  "git_commit": "4bb843986f129ef9d5fcc9452165261c4d879c11",
+  "git_dirty_tracked": true,
+  "tasks_file": "tasks.jsonl",
+  "tasks_sha256": "59d5a1388330111b785658da3b062ef024aa31987c76893d81d2b3605de96f2f",
+  "task_count": 20,
+  "dependency_distribution": {
+    "independent": 16,
+    "partially_dependent": 4
+  },
+  "corpus_file": "eval/orchestration/corpus.jsonl",
+  "corpus_sha256": "11d6f70f79c983414c4155dd011095a531d0f039e020248a1a628b7839e19526",
+  "corpus_chunks": 20,
+  "qdrant_collection": "eval_orchestration_bench_v1",
+  "kb_id": "eval_orchestration_v1",
+  "model": "deepseek-v4-pro",
+  "temperature": 0,
+  "sdk_max_retries": 0,
+  "explicit_retry_delays_s": [
+    1.0,
+    2.0
+  ],
+  "concurrencies": [
+    1,
+    2,
+    4,
+    8
+  ],
+  "formal_runs_per_task_config": 3,
+  "warmups_per_task_config": 1,
+  "schedule_seed": 20260711,
+  "pricing": {
+    "currency": "USD",
+    "input_cache_hit_per_million": 0.003625,
+    "input_cache_miss_per_million": 0.435,
+    "output_per_million": 0.87,
+    "source": "https://api-docs.deepseek.com/quick_start/pricing?article_id=article_1779470751466_8",
+    "retrieved_on": "2026-07-11"
+  },
+  "python": "3.13.5",
+  "platform": "macOS-15.3.1-arm64-arm-64bit-Mach-O",
+  "packages": {
+    "langgraph": "1.2.7",
+    "langchain-core": "1.4.8",
+    "langchain-deepseek": "1.1.0",
+    "qdrant-client": "1.18.0",
+    "fastembed": "0.8.0"
+  },
+  "official_complete": true,
+  "secrets_recorded": false
+}

@@ -1,0 +1,49 @@
+# ===== 不提交的项目内文档与上下文 =====
+docs/
+CLAUDE.md
+PLAN_STATUS.md
+.claude/
+
+# ===== 环境与密钥 =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ===== Go =====
+/control-plane/bin/
+/control-plane/**/*.test
+/control-plane/test_output*
+/control-plane/vendor/
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.python-version
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ===== 前端 =====
+*.tsbuildinfo
+/web/node_modules/
+/web/dist/
+/web/.vite/
+
+# ===== 容器数据卷 / 运行产物 =====
+/deploy/data/
+/deploy/volumes/
+
+# ===== 生成代码（由 `make proto` 从 proto/ 单一来源重新生成）=====
+/control-plane/internal/genproto/
+/cognition/cognition/genproto/
+
+# ===== 编辑器/系统 =====
+.idea/
+.vscode/
+.DS_Store
+*.log

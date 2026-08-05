@@ -1,0 +1,42 @@
+﻿# syntax=docker/dockerfile:1
+# 控制面镜像（三阶段）。构建上下文 = 仓库根（compose: build.context: ..）。
+# genproto 不入库也不入上下文 → 在镜像内用与 go.mod 对齐的插件版本再生成，
+# `go build` 编译通过即 stub 正确的证明。
+
+# ---- 阶段 1：前端构建（dist 随后拷入运行层，Go 单端口托管） ----
+FROM node:22-alpine AS web
+WORKDIR /src/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci
+COPY web/ ./
+RUN npm run build
+
+# ---- 阶段 2：Go 构建 + proto stub 再生成 ----
+FROM golang:1.25-alpine AS build
+# buf via go install (avoid slow GHCR pull)
+ENV GOPROXY=https://goproxy.cn,direct
+RUN go install github.com/bufbuild/buf/cmd/buf@v1.47.2
+WORKDIR /src
+COPY control-plane/go.mod control-plane/go.sum ./control-plane/
+RUN cd control-plane && go mod download
+# protoc-gen-go 版本从 go.mod 推导（与运行时 protobuf 库同版），protoc-gen-go-grpc 固定。
+RUN cd control-plane \
+ && go install google.golang.org/protobuf/cmd/protoc-gen-go@$(go list -m -f '{{.Version}}' google.golang.org/protobuf) \
+ && go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+COPY buf.yaml buf.gen.yaml ./
+COPY proto/ ./proto/
+COPY control-plane/ ./control-plane/
+ENV PATH="/go/bin:${PATH}"
+RUN buf generate
+RUN cd control-plane && CGO_ENABLED=0 go build -o /out/controlplane ./cmd/controlplane
+
+# ---- 阶段 3：运行层（alpine 而非 distroless：compose healthcheck 需要 wget） ----
+FROM alpine:3.20
+RUN adduser -D app
+COPY --from=build /out/controlplane /usr/local/bin/controlplane
+COPY --from=web /src/web/dist /app/web
+ENV WEB_DIR=/app/web \
+    HTTP_ADDR=:8080
+USER app
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/controlplane"]

@@ -1,0 +1,20 @@
+{"chunk_id":"atlas_scheduler::c00","document_id":"atlas_scheduler","seq":0,"text":"Atlas 调度器采用加权公平队列。单个租户最多同时运行 64 个作业；worker 通过 30 秒租约领取作业，租约每 10 秒续期。瞬时失败最多重试 3 次，退避为 1、2、4 秒。"}
+{"chunk_id":"borealis_gateway::c00","document_id":"borealis_gateway","seq":0,"text":"Borealis 网关对外提供 HTTP，对内使用 gRPC，并把执行事件转换为 SSE。请求体上限 8 MiB；SSE 每 15 秒发送一次心跳，客户端断开后通过 context 取消下游调用。"}
+{"chunk_id":"cygnus_storage::c00","document_id":"cygnus_storage","seq":0,"text":"Cygnus 状态存储使用虚构数据库 QuartzDB。每 200 个事件创建一次快照，事件保留 30 天，快照保留 90 天。写入使用 run_id 与 sequence 组成的唯一键防止重复。"}
+{"chunk_id":"draco_observability::c00","document_id":"draco_observability","seq":0,"text":"Draco 可观测模块用 star-trace-id 贯穿网关、RPC 和 worker。核心指标包括 run_latency_seconds、branch_active、retry_total 与 rate_limit_total；延迟直方图使用 0.1、0.5、1、2、5、10 秒桶。"}
+{"chunk_id":"echo_auth::c00","document_id":"echo_auth","seq":0,"text":"Echo 鉴权定义 reader、operator、admin 三种角色。访问令牌有效期 15 分钟，刷新令牌有效期 7 天；operator 可发起作业但不能管理用户，admin 拥有用户管理权限。"}
+{"chunk_id":"flux_search::c00","document_id":"flux_search","seq":0,"text":"Flux 检索同时执行 dense 与 sparse 两路召回，各预取 20 条候选，再用 RRF 融合。融合结果取前 10 条进入 reranker，最终保留 5 条证据；所有查询必须携带 tenant_id 过滤。"}
+{"chunk_id":"gaia_ingestion::c00","document_id":"gaia_ingestion","seq":0,"text":"Gaia 入库流水线按 800 字符分块，相邻块重叠 100 字符。point id 使用 tenant_id 与规范化文本 SHA-256 生成，因此重复上传会原地 upsert，不会增加向量数量。"}
+{"chunk_id":"helios_artifacts::c00","document_id":"helios_artifacts","seq":0,"text":"Helios 产物服务把文件写入对象存储，键格式为 runs/{run_id}/{tool_call_id}/{name}。产物一旦写入不可变；下载链接有效期 20 分钟，元数据保留 MIME、大小与 SHA-256。"}
+{"chunk_id":"iris_messaging::c00","document_id":"iris_messaging","seq":0,"text":"Iris 消息总线提供至少一次投递。消费者用 event_id 去重，去重窗口为 24 小时；单条消息处理超过 45 秒会重新投递，连续 5 次失败后进入死信队列。"}
+{"chunk_id":"janus_rollout::c00","document_id":"janus_rollout","seq":0,"text":"Janus 发布控制按 5%、25%、100% 三阶段金丝雀放量。每阶段观察 20 分钟；错误率超过 2% 或 P95 延迟增加超过 30% 时自动回滚到上一稳定版本。"}
+{"chunk_id":"kestrel_quota::c00","document_id":"kestrel_quota","seq":0,"text":"Kestrel 配额服务对每租户限制为每分钟 120 次请求，允许额外突发 30 次。令牌桶每 500 毫秒补充一个批次，配额耗尽返回 429 并携带 retry-after。"}
+{"chunk_id":"luna_cache::c00","document_id":"luna_cache","seq":0,"text":"Luna 缓存默认 TTL 为 300 秒，并允许 30 秒 stale-while-revalidate。缓存键由模型、提示词版本和输入哈希组成；包含 confidential 标签的请求禁止写缓存。"}
+{"chunk_id":"mira_backup::c00","document_id":"mira_backup","seq":0,"text":"Mira 备份策略的恢复点目标 RPO 为 15 分钟，恢复时间目标 RTO 为 60 分钟。每天执行全量备份、每 15 分钟增量备份，季度进行一次恢复演练。"}
+{"chunk_id":"nova_connector::c00","document_id":"nova_connector","seq":0,"text":"Nova 连接器默认每 90 秒轮询一次外部源。游标在成功处理整个批次后提交；同一 source_id 同时只允许一个 poller，连续 4 次失败后暂停 10 分钟。"}
+{"chunk_id":"orion_dependencies::c00","document_id":"orion_dependencies","seq":0,"text":"Orion 计划把任务表达为 DAG。只有所有 depends_on 节点都为 completed 时节点才可运行；检测到环立即拒绝计划，失败依赖会把后继节点标为 blocked。"}
+{"chunk_id":"pegasus_concurrency::c00","document_id":"pegasus_concurrency","seq":0,"text":"Pegasus worker 用异步信号量限制分支并发，默认上限 4，可配置为 1 到 8。信号量在真正调用执行器前获取，并在 finally 中释放；等待信号量的分支不计入 active 指标。"}
+{"chunk_id":"quasar_isolation::c00","document_id":"quasar_isolation","seq":0,"text":"Quasar 分支隔离规定单分支超时为 300 秒。超时或异常会生成 status=error 的占位结果而不是抛弃其他分支；父状态按 ERROR 大于 IDLE 大于 FINISHED 的优先级归约。"}
+{"chunk_id":"rigel_aggregation::c00","document_id":"rigel_aggregation","seq":0,"text":"Rigel 聚合器用 (run_id, round, branch_id) 作为唯一键去重。合并函数满足交换律和结合律，输出按 run_id、round、branch_id 排序，因而不受并行完成顺序影响。"}
+{"chunk_id":"solstice_cost::c00","document_id":"solstice_cost","seq":0,"text":"Solstice 成本模块分别累计 input、cache-read 与 output token。预算在 run 开始时预留，达到 80% 发出告警，达到 100% 阻止创建新分支，但允许已启动分支收尾。"}
+{"chunk_id":"titan_health::c00","document_id":"titan_health","seq":0,"text":"Titan 健康系统提供 /live 与 /ready。/live 只检查进程事件循环；/ready 同时检查数据库、消息总线和模型网关，任一关键依赖不可用即返回 503。"}

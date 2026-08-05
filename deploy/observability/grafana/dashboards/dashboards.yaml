@@ -1,0 +1,16 @@
+# Grafana dashboard provider（docs/18 §3.3）——从目录加载 dashboard JSON（单一事实源，
+# 可复现，杜绝手工 UI 建看板）。把本文件放进 global-grafana 的 provisioning/dashboards/，
+# 并把同目录的 *.json 挂到下面的 path（见本目录 README）。
+apiVersion: 1
+
+providers:
+  - name: my-agent
+    orgId: 1
+    folder: my-agent
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/my-agent
+      foldersFromFilesStructure: false

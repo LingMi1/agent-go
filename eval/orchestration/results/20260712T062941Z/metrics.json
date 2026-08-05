@@ -1,0 +1,160 @@
+{
+  "configs": {
+    "1": {
+      "formal_runs": 60,
+      "successful_runs": 60,
+      "mean_latency_s": 137.15241163333334,
+      "p50_latency_s": 32.73618,
+      "p95_latency_s": 319.712691,
+      "successful_mean_latency_s": 137.15241163333334,
+      "success_rate": 1.0,
+      "timeout_rate": 0.0,
+      "rate_limit_run_rate": 0.0,
+      "completeness_pass_rate": 1.0,
+      "dependency_order_pass_rate": 1.0,
+      "quality_valid_runs": 60,
+      "retry_count": 1,
+      "tool_error_count": 1,
+      "rate_limit_count": 0,
+      "llm_calls": 1676,
+      "input_tokens": 1189771,
+      "output_tokens": 471473,
+      "estimated_cost_usd": 0.583349703,
+      "mean_cost_usd": 0.00972249505,
+      "actual_max_concurrency_mean": 1.0,
+      "actual_max_concurrency_max": 1,
+      "expected_subtasks": 312,
+      "observed_subtasks": 312,
+      "speedup_ratio_of_means": 1.0,
+      "latency_reduction_ratio": 0.0,
+      "paired_speedup_mean": 1.0,
+      "paired_valid_speedup_mean": 1.0,
+      "paired_reduction_ci95": [
+        0.0,
+        0.0
+      ],
+      "paired_runs": 60
+    },
+    "2": {
+      "formal_runs": 60,
+      "successful_runs": 58,
+      "mean_latency_s": 91.62683011666667,
+      "p50_latency_s": 19.464141,
+      "p95_latency_s": 231.198553,
+      "successful_mean_latency_s": 89.31538277586208,
+      "success_rate": 0.9666666666666667,
+      "timeout_rate": 0.0,
+      "rate_limit_run_rate": 0.0,
+      "completeness_pass_rate": 1.0,
+      "dependency_order_pass_rate": 1.0,
+      "quality_valid_runs": 58,
+      "retry_count": 0,
+      "tool_error_count": 0,
+      "rate_limit_count": 0,
+      "llm_calls": 1696,
+      "input_tokens": 1201754,
+      "output_tokens": 498720,
+      "estimated_cost_usd": 0.604868254,
+      "mean_cost_usd": 0.010081137566666667,
+      "actual_max_concurrency_mean": 2.0,
+      "actual_max_concurrency_max": 2,
+      "expected_subtasks": 312,
+      "observed_subtasks": 312,
+      "speedup_ratio_of_means": 1.496858632550093,
+      "latency_reduction_ratio": 0.33193423997804644,
+      "paired_speedup_mean": 1.6412033054874053,
+      "paired_valid_speedup_mean": 1.6384112266863005,
+      "paired_reduction_ci95": [
+        0.3183112347269864,
+        0.4108561644181933
+      ],
+      "paired_runs": 60
+    },
+    "4": {
+      "formal_runs": 60,
+      "successful_runs": 58,
+      "mean_latency_s": 55.269658150000005,
+      "p50_latency_s": 15.696589,
+      "p95_latency_s": 142.447122,
+      "successful_mean_latency_s": 54.35127762068966,
+      "success_rate": 0.9666666666666667,
+      "timeout_rate": 0.0,
+      "rate_limit_run_rate": 0.0,
+      "completeness_pass_rate": 1.0,
+      "dependency_order_pass_rate": 1.0,
+      "quality_valid_runs": 58,
+      "retry_count": 2,
+      "tool_error_count": 1,
+      "rate_limit_count": 0,
+      "llm_calls": 1639,
+      "input_tokens": 1167282,
+      "output_tokens": 457067,
+      "estimated_cost_usd": 0.558714696,
+      "mean_cost_usd": 0.0093119116,
+      "actual_max_concurrency_mean": 3.85,
+      "actual_max_concurrency_max": 4,
+      "expected_subtasks": 312,
+      "observed_subtasks": 312,
+      "speedup_ratio_of_means": 2.4815136591058025,
+      "latency_reduction_ratio": 0.5970201508540786,
+      "paired_speedup_mean": 2.796920588207458,
+      "paired_valid_speedup_mean": 2.802896075143384,
+      "paired_reduction_ci95": [
+        0.548102435955937,
+        0.6504363428429764
+      ],
+      "paired_runs": 60
+    },
+    "8": {
+      "formal_runs": 60,
+      "successful_runs": 59,
+      "mean_latency_s": 51.921991899999995,
+      "p50_latency_s": 16.506777,
+      "p95_latency_s": 177.187782,
+      "successful_mean_latency_s": 51.93042466101695,
+      "success_rate": 0.9833333333333333,
+      "timeout_rate": 0.0,
+      "rate_limit_run_rate": 0.0,
+      "completeness_pass_rate": 1.0,
+      "dependency_order_pass_rate": 1.0,
+      "quality_valid_runs": 59,
+      "retry_count": 0,
+      "tool_error_count": 2,
+      "rate_limit_count": 0,
+      "llm_calls": 1704,
+      "input_tokens": 1203565,
+      "output_tokens": 499962,
+      "estimated_cost_usd": 0.612865555,
+      "mean_cost_usd": 0.010214425916666665,
+      "actual_max_concurrency_mean": 5.0,
+      "actual_max_concurrency_max": 8,
+      "expected_subtasks": 312,
+      "observed_subtasks": 312,
+      "speedup_ratio_of_means": 2.6415090526088494,
+      "latency_reduction_ratio": 0.621428516774393,
+      "paired_speedup_mean": 3.584070936485996,
+      "paired_valid_speedup_mean": 3.5374543188910446,
+      "paired_reduction_ci95": [
+        0.5718408362829406,
+        0.7196459286161968
+      ],
+      "paired_runs": 60
+    }
+  },
+  "bootstrap_seed": 20260711,
+  "best_concurrency": {
+    "concurrency": 1,
+    "safe_parallel_gain": false,
+    "rejections": {
+      "2": [
+        "success_rate"
+      ],
+      "4": [
+        "success_rate"
+      ],
+      "8": [
+        "cost"
+      ]
+    }
+  }
+}

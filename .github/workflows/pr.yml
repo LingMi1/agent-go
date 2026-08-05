@@ -1,0 +1,80 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: agent
+          POSTGRES_PASSWORD: agent_pwd
+          POSTGRES_DB: my_agent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # ── Go ──
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+
+      - name: Go lint (go vet)
+        working-directory: control-plane
+        run: go vet ./...
+
+      - name: Go test (race)
+        working-directory: control-plane
+        env:
+          TEST_PG_DSN: postgres://agent:agent_pwd@localhost:5432/my_agent_test
+        run: go test -race -count=1 ./...
+
+      # ── Python ──
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Python lint (ruff)
+        working-directory: cognition
+        run: uv run ruff check .
+
+      - name: Python test
+        working-directory: cognition
+        run: uv run pytest -q
+
+      # ── TypeScript ──
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: web
+        run: npx tsc --noEmit
+
+      - name: Web unit tests
+        working-directory: web
+        run: npm run test
