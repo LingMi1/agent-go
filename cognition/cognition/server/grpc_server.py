@@ -200,9 +200,9 @@ async def serve(settings: Settings | None = None) -> None:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
     asyncio.run(serve())
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     main()

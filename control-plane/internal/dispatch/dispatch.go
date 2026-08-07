@@ -158,7 +158,9 @@ func (d *Dispatcher) Run(ctx context.Context, cmd StartCommand, sink stream.Sink
 		SessionAttachmentsJSON: sessionAtts,
 	})
 	if err != nil {
-		_ = d.runs.FinishRun(finCtx, store.FinishRunParams{RunID: cmd.RunID, Status: store.StatusFailed, ErrorMsg: err.Error()})
+		if ferr := d.runs.FinishRun(finCtx, store.FinishRunParams{RunID: cmd.RunID, Status: store.StatusFailed, ErrorMsg: err.Error()}); ferr != nil && log != nil {
+			log.Warn("finish run after agent failure failed", "runID", cmd.RunID, "agentErr", err, "finishErr", ferr)
+		}
 		metrics.Runs().WithLabelValues(store.StatusFailed, agentType).Inc()
 		metrics.RunDuration().WithLabelValues(agentType).Observe(time.Since(start).Seconds())
 		return fmt.Errorf("dispatch: open run stream: %w", err)

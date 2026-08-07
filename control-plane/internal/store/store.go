@@ -15,9 +15,16 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// NewPool 创建并校验一个 pgx 连接池。
-func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, dsn)
+// NewPool 创建并校验一个 pgx 连接池。maxConns 为最大连接数（≤0 则用 pgxpool 默认值）。
+func NewPool(ctx context.Context, dsn string, maxConns int32) (*pgxpool.Pool, error) {
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("store: parse config: %w", err)
+	}
+	if maxConns > 0 {
+		cfg.MaxConns = maxConns
+	}
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("store: new pool: %w", err)
 	}

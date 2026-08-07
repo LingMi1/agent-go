@@ -70,7 +70,9 @@ func (h *Hub) Pump(ctx context.Context, runID string, s cognition.Stream, sink S
 		case <-ctx.Done():
 			// 客户端断开 → STOPPED；超时 → TIMEOUT。
 			// 优雅关闭：发送 done 事件让前端区分正常关机与网络故障。
-			_ = sink.WriteDone()
+			if err := sink.WriteDone(); err != nil && h.log != nil {
+				h.log.Warn("sink WriteDone failed", "err", err)
+			}
 			if ctx.Err() == context.DeadlineExceeded {
 				metrics.PumpErrors().WithLabelValues("RUN_TIMEOUT").Inc()
 				return Result{Status: store.StatusTimeout, ErrorCode: "RUN_TIMEOUT"}
@@ -79,7 +81,9 @@ func (h *Hub) Pump(ctx context.Context, runID string, s cognition.Stream, sink S
 			return Result{Status: store.StatusStopped, ErrorCode: "CLIENT_GONE"}
 
 		case <-ticker.C:
-			_ = sink.WriteHeartbeat() // 心跳不落库、不计入 seq
+			if err := sink.WriteHeartbeat(); err != nil && h.log != nil {
+				h.log.Warn("sink WriteHeartbeat failed", "err", err)
+			} // 心跳不落库、不计入 seq
 
 		case e, ok := <-evCh:
 			if !ok {

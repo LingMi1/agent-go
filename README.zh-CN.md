@@ -73,8 +73,8 @@ graph LR
 
 ### 可观测性
 - OpenTelemetry 全链路追踪，跨 Go ↔ Python 传播
-- 13+ Prometheus 指标
-- Grafana 仪表盘
+- 13+ Prometheus 指标（`myagent_runs_in_flight`、`myagent_run_duration_seconds`、`myagent_sse_frames_pumped` 等）
+- Grafana 仪表盘（含概览面板）
 - Langfuse LLM 可观测（可选）
 
 ### 主动自动化
@@ -100,7 +100,7 @@ graph LR
 | 控制面 | Go 1.25、Chi router、pgx、gRPC、Prometheus、OpenTelemetry |
 | 认知面 | Python 3.12、LangGraph、LangChain、gRPC |
 | 基础设施 | PostgreSQL 16、Qdrant、MinIO、Redis 7 |
-| 容器化 | Docker Compose、多阶段 Dockerfile |
+| 容器化 | Docker Compose、多阶段 Dockerfiles |
 
 ---
 
@@ -183,12 +183,12 @@ cd web && npm run dev
 │   │   └── providers/      # LLM 适配（Anthropic、DeepSeek、fake）
 ├── web/                     # React 前端
 │   └── src/
-│       ├── components/     # UI 组件（基于 shadcn/ui）
+│       ├── components/     # UI 组件（shadcn/ui + AdminPanel、Sidebar 等）
 │       ├── hooks/          # useAuth、useRunStream、useHealth
 │       ├── lib/            # SSE 解析器、API 客户端、状态归并器
-│       └── views/          # ChatView、LoginView、AdminView
+│       └── views/          # ChatView、LoginView
 ├── proto/                   # Protocol Buffers（buf 管理）
-├── deploy/                  # Docker Compose、Dockerfile、环境变量模板
+├── deploy/                  # Docker Compose、Dockerfiles、环境变量模板
 └── .github/workflows/       # CI/CD：PR 时自动 lint + test
 ```
 
@@ -196,7 +196,7 @@ cd web && npm run dev
 
 ## 测试
 
-**Go + Python 共 530+ 测试用例，CI 全部通过。**
+**Go + Python + TypeScript 共 490+ 测试用例，CI 全部通过。**
 
 ```bash
 # Go — 所有测试带 race detector
@@ -213,6 +213,7 @@ CI pipeline（`.github/workflows/pr.yml`）每次 PR 自动执行：
 - `go vet` + `go test -race -count=1`
 - `ruff` + `pytest`
 - `tsc --noEmit` + `npm run test`
+- Docker 镜像构建（control-plane + cognition）
 
 全部通过才允许合并。
 

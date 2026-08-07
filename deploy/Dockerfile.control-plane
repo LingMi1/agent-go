@@ -1,4 +1,4 @@
-﻿# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1
 # 控制面镜像（三阶段）。构建上下文 = 仓库根（compose: build.context: ..）。
 # genproto 不入库也不入上下文 → 在镜像内用与 go.mod 对齐的插件版本再生成，
 # `go build` 编译通过即 stub 正确的证明。
@@ -13,8 +13,9 @@ RUN npm run build
 
 # ---- 阶段 2：Go 构建 + proto stub 再生成 ----
 FROM golang:1.25-alpine AS build
-# buf via go install (avoid slow GHCR pull)
-ENV GOPROXY=https://goproxy.cn,direct
+# buf via go install (avoid slow GHCR pull). Override GOPROXY to use regional mirror if needed.
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 RUN go install github.com/bufbuild/buf/cmd/buf@v1.47.2
 WORKDIR /src
 COPY control-plane/go.mod control-plane/go.sum ./control-plane/

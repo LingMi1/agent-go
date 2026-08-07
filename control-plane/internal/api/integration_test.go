@@ -155,7 +155,7 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 		t.Fatalf("拒绝对库 %q 跑会 TRUNCATE 的集成测试（会清空开发库对话历史）——TEST_PG_DSN 须指向含 test 的库", db)
 	}
 	ctx := context.Background()
-	pool, err := store.NewPool(ctx, dsn)
+	pool, err := store.NewPool(ctx, dsn, 0)
 	if err != nil {
 		t.Fatalf("NewPool: %v", err)
 	}

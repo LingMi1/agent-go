@@ -10,6 +10,7 @@ package observability
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -30,7 +31,7 @@ import (
 // 启用：建 otlptracegrpc exporter（指向 cfg.OTelEndpoint）+ 批处理 TracerProvider
 // （resource.service.name=cfg.OTelServiceName），SetTracerProvider + SetTextMapPropagator
 // （TraceContext + Baggage，即 W3C traceparent）。
-func SetupTracing(ctx context.Context, cfg config.Config) (shutdown func(), err error) {
+func SetupTracing(ctx context.Context, cfg config.Config, log *slog.Logger) (shutdown func(), err error) {
 	noop := func() {}
 	if !cfg.OTelEnabled {
 		return noop, nil
@@ -64,6 +65,8 @@ func SetupTracing(ctx context.Context, cfg config.Config) (shutdown func(), err 
 		// 停机在脱离请求 ctx 的独立超时里 flush 未导出的 span，避免优雅停机被卡死。
 		shutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = tp.Shutdown(shutCtx)
+		if err := tp.Shutdown(shutCtx); err != nil && log != nil {
+			log.Warn("otel tracer provider shutdown failed", "err", err)
+		}
 	}, nil
 }

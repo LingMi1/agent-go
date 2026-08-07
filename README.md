@@ -183,10 +183,10 @@ cd web && npm run dev
 │   │   └── providers/      # LLM adapters (Anthropic, DeepSeek, fake)
 ├── web/                     # React frontend
 │   └── src/
-│       ├── components/     # UI components (shadcn/ui based)
+│       ├── components/    # UI components (shadcn/ui + AdminPanel, Sidebar, etc.)
 │       ├── hooks/          # useAuth, useRunStream, useHealth
 │       ├── lib/            # SSE parser, API client, state reducer
-│       └── views/          # ChatView, LoginView, AdminView
+│       └── views/          # ChatView, LoginView
 ├── proto/                   # Protocol Buffers (buf managed)
 ├── deploy/                  # Docker Compose, Dockerfiles, env templates
 └── .github/workflows/       # CI/CD: lint + test on PR
@@ -196,7 +196,7 @@ cd web && npm run dev
 
 ## Testing
 
-**530+ tests across Go and Python, all passing in CI.**
+**490+ tests across Go, Python, and TypeScript, all passing in CI.**
 
 ```bash
 # Go — all tests run with -race detector
@@ -213,8 +213,9 @@ The CI pipeline (`.github/workflows/pr.yml`) runs on every PR:
 - `go vet` + `go test -race -count=1`
 - `ruff` + `pytest`
 - `tsc --noEmit` + `npm run test`
+- Docker image builds (control-plane + cognition)
 
-All three must pass before merging.
+All checks must pass before merging.
 
 ---
 

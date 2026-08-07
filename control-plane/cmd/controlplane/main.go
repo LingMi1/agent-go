@@ -40,13 +40,13 @@ func main() {
 
 	// OTel 追踪（docs/18，默认关：SetupTracing 直接返回 no-op shutdown，不建 provider）。
 	// 启用时建 OTLP/gRPC exporter + 全局 TracerProvider + W3C 传播器；defer flush。
-	shutdownTracing, err := observability.SetupTracing(ctx, cfg)
+	shutdownTracing, err := observability.SetupTracing(ctx, cfg, log)
 	if err != nil {
 		log.Warn("otel tracing setup failed; continuing without traces", "err", err)
 	}
 	defer shutdownTracing()
 
-	pool, err := store.NewPool(ctx, cfg.PGDSN)
+	pool, err := store.NewPool(ctx, cfg.PGDSN, cfg.PGPoolMaxConns)
 	if err != nil {
 		log.Error("connect postgres", "err", err)
 		os.Exit(1)
@@ -105,15 +105,25 @@ func main() {
 	// Redis 限流中间件：仅当 REDIS_ADDR 已配置且 RATE_LIMIT_ENABLED 才启用。
 	// Redis 不可达只告警不致命——限流关闭、请求放行（fail-open）。
 	var rateLimiter *middleware.RateLimiter
-	if cfg.RedisAddr != "" && cfg.RateLimitEnabled {
-		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
-		if _, err := rdb.Ping(ctx).Result(); err != nil {
-			log.Warn("redis ping failed, rate limiting disabled", "addr", cfg.RedisAddr, "err", err)
-		} else {
-			rateLimiter = middleware.NewRateLimiter(rdb, cfg.RateLimitRPM, cfg.RateLimitRunRPM, log)
-			log.Info("rate limiting enabled", "addr", cfg.RedisAddr, "global_rpm", cfg.RateLimitRPM, "run_rpm", cfg.RateLimitRunRPM)
+	var rdb *redis.Client
+	if cfg.RedisAddr != "" {
+		rdb = redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		if cfg.RateLimitEnabled {
+			if _, err := rdb.Ping(ctx).Result(); err != nil {
+				log.Warn("redis ping failed, rate limiting disabled", "addr", cfg.RedisAddr, "err", err)
+			} else {
+				rateLimiter = middleware.NewRateLimiter(rdb, cfg.RateLimitRPM, cfg.RateLimitRunRPM, log)
+				log.Info("rate limiting enabled", "addr", cfg.RedisAddr, "global_rpm", cfg.RateLimitRPM, "run_rpm", cfg.RateLimitRunRPM)
+			}
 		}
 	}
+	defer func() {
+		if rdb != nil {
+			if err := rdb.Close(); err != nil {
+				log.Warn("redis close failed", "err", err)
+			}
+		}
+	}()
 
 	router := api.NewRouter(dispatcher, runs, sessions, events, artStore, healthChecks, kbIface, client, statsRepo, artifactListRepo, schedRepo, userRepo, tokenRepo, connectorRepo, triggerRepo, rateLimiter, cfg.RunTimeout, cfg.WebDir, log)
 
@@ -161,12 +171,19 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
+
+	// 优雅停机顺序：
+	// 1. 通知 background goroutine 停止（调度器、poller）
+	// 2. srv.Shutdown：停止接受新连接，排空进行中的 HTTP 请求（含 SSE 流）
+	// 3. main 返回 → defer 栈按 LIFO 关闭：cognition 客户端 → PG 连接池 → Redis → OTel
 	schedCancel()
 	pollCancel()
-	log.Info("shutting down")
+	log.Info("shutting down, draining in-flight connections (max 10s)")
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutCtx)
+	if err := srv.Shutdown(shutCtx); err != nil {
+		log.Warn("http server shutdown error", "err", err)
+	}
 }
 
 // bootstrapAdmin：BOOTSTRAP_ADMIN_USER 已设且用户不存在 → 建 role=admin（docs/17 §3.3）。

@@ -10,7 +10,7 @@ import (
 // 默认关（OTelEnabled=false）：SetupTracing 返回非 nil、幂等的 no-op shutdown、无错，
 // 且不触碰任何 otel 全局状态。零行为变化红线（docs/18 §6）。
 func TestSetupTracing_DisabledReturnsNoop(t *testing.T) {
-	shutdown, err := SetupTracing(context.Background(), config.Config{OTelEnabled: false})
+	shutdown, err := SetupTracing(context.Background(), config.Config{OTelEnabled: false}, nil)
 	if err != nil {
 		t.Fatalf("disabled setup should not error, got: %v", err)
 	}
@@ -28,7 +28,7 @@ func TestSetupTracing_DisabledDoesNotConfigureExporter(t *testing.T) {
 	shutdown, err := SetupTracing(context.Background(), config.Config{
 		OTelEnabled:  false,
 		OTelEndpoint: "not-a-valid-endpoint:::",
-	})
+	}, nil)
 	if err != nil {
 		t.Fatalf("disabled setup must skip exporter construction, got err: %v", err)
 	}

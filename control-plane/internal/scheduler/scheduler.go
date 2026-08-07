@@ -1,7 +1,7 @@
 // Package scheduler：定时触发 Proactive run（M11）。
 //
 // 控制面作为调度中枢的论据实装：ticker 扫描到期 schedules → 复用 Dispatcher 准入/
-// 事件链路发起 headless run（NullSink——事件仍先落账本，会话列表/回放照常可见）。
+// 事件链路发起 headless run（stream.NullSink——事件仍先落账本，会话列表/回放照常可见）。
 //
 // 次序纪律（压测定稿）：**先 Admit 后 Claim**——反序会在满载时推进 next_run_at 却没跑，
 // 静默丢一拍；Admit 失败即留行，下个 tick 重试。调度并发有独立小信号量（默认 2），
@@ -16,18 +16,10 @@ import (
 	"github.com/google/uuid"
 
 	"my-agent/control-plane/internal/dispatch"
-	"my-agent/control-plane/internal/event"
 	"my-agent/control-plane/internal/metrics"
 	"my-agent/control-plane/internal/store"
+	"my-agent/control-plane/internal/stream"
 )
-
-// nullSink：headless run 的空写端——事件仍由 hub 先落账本（持久化在前、展示为空），
-// 会话列表/回放照常可见调度产生的 run。
-type nullSink struct{}
-
-func (nullSink) WriteFrame(event.Envelope) error { return nil }
-func (nullSink) WriteHeartbeat() error           { return nil }
-func (nullSink) WriteDone() error                { return nil }
 
 // Scheduler 周期扫描并触发到期任务。
 type Scheduler struct {
@@ -128,7 +120,7 @@ func (s *Scheduler) fireDue(ctx context.Context) {
 			if err := s.dispatcher.Run(runCtx, dispatch.StartCommand{
 				RunID: runID, SessionID: sched.SessionID, OwnerID: sched.OwnerID,
 				Query: sched.QueryText, AgentType: sched.AgentType,
-			}, nullSink{}); err != nil {
+			}, stream.NullSink{}); err != nil {
 				s.log.Warn("scheduled run failed", "scheduleId", sched.ScheduleID, "err", err)
 			}
 		}(sched)

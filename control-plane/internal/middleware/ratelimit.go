@@ -63,7 +63,9 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		}
 		// 首个请求设置 1 分钟过期（固定窗口自动清理）。
 		if count == 1 {
-			_ = rl.rdb.Expire(ctx, key, time.Minute)
+			if err := rl.rdb.Expire(ctx, key, time.Minute).Err(); err != nil && rl.log != nil {
+				rl.log.Warn("rate limit expire set failed", "err", err, "key", key)
+			}
 		}
 		if count > int64(limit) {
 			setRateLimitHeaders(w, limit, 0, window)

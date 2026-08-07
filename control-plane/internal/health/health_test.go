@@ -22,8 +22,8 @@ func TestAggregate_OneFailed(t *testing.T) {
 	if r.Healthy || r.HTTPStatus != http.StatusServiceUnavailable {
 		t.Fatalf("expected unhealthy 503, got %+v", r)
 	}
-	if r.Body["cognition"] != "not serving" {
-		t.Fatalf("body should carry failure reason, got %v", r.Body)
+	if r.Body["cognition"] != "unhealthy" {
+		t.Fatalf("body should mark unhealthy, got %v", r.Body)
 	}
 }
 
@@ -39,7 +39,7 @@ func TestRunChecks_Concurrent(t *testing.T) {
 		"a": func(context.Context) error { return nil },
 		"b": func(context.Context) error { return errors.New("down") },
 	})
-	if r.Healthy || r.Body["a"] != "ok" || r.Body["b"] != "down" {
+	if r.Healthy || r.Body["a"] != "ok" || r.Body["b"] != "unhealthy" {
 		t.Fatalf("unexpected report %+v", r)
 	}
 }

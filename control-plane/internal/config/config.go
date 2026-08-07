@@ -47,6 +47,9 @@ type Config struct {
 	RateLimitEnabled bool  // RATE_LIMIT_ENABLED（1/true/yes/on）：启用限流中间件
 	RateLimitRPM    int    // RATE_LIMIT_RPM：全部 API 的全局每分钟上限（默认 60）
 	RateLimitRunRPM int    // RATE_LIMIT_RUN_RPM：POST /runs 的每分钟上限（默认 10，比全局更严）
+
+	// PostgreSQL 连接池
+	PGPoolMaxConns int32 // PG_POOL_MAX_CONNS：pgxpool 最大连接数（默认 16，对齐 MAX_CONCURRENT_RUNS）
 }
 
 func Load() Config {
@@ -88,6 +91,7 @@ func Load() Config {
 		RateLimitEnabled: EnvBool("RATE_LIMIT_ENABLED"),
 		RateLimitRPM:    envInt("RATE_LIMIT_RPM", 60),
 		RateLimitRunRPM: envInt("RATE_LIMIT_RUN_RPM", 10),
+		PGPoolMaxConns:  int32(envInt("PG_POOL_MAX_CONNS", 16)),
 	}
 }
 

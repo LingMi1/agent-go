@@ -42,8 +42,8 @@ func TestHealthz_DependencyDown(t *testing.T) {
 		t.Fatalf("expected unhealthy 503, got %d %v", rec.Code, body)
 	}
 	checks, _ := body["checks"].(map[string]any)
-	if checks["cognition"] != "not serving" {
-		t.Fatalf("expected failure reason in body, got %v", body["checks"])
+	if checks["cognition"] != "unhealthy" {
+		t.Fatalf("expected unhealthy in body, got %v", body["checks"])
 	}
 }
 

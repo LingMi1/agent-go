@@ -213,7 +213,7 @@ func (h *handlers) startRun(w http.ResponseWriter, r *http.Request) {
 	if len(body.Attachments) > 0 {
 		b, err := json.Marshal(body.Attachments)
 		if err != nil { // attachmentRef 全平铺字段，实际不可达；防御性 500 而非静默丢账
-			writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+			h.internalError(w, err)
 			return
 		}
 		attsJSON = b
@@ -244,7 +244,7 @@ func (h *handlers) startRun(w http.ResponseWriter, r *http.Request) {
 				case errors.Is(aerr, store.ErrRunNotFound):
 					// 保持回退值，交认知面处理。
 				default:
-					writeProblem(w, http.StatusInternalServerError, "internal", aerr.Error())
+					h.internalError(w, aerr)
 					return
 				}
 			}
@@ -253,7 +253,7 @@ func (h *handlers) startRun(w http.ResponseWriter, r *http.Request) {
 		default:
 			// 瞬时 DB 错误不得静默吞掉：无键 run 会在新 thread 落 checkpoint，认知面
 			// 幂等闸从此永久拦死补种。宁失败勿降级。
-			writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+			h.internalError(w, err)
 			return
 		}
 	}
@@ -302,7 +302,7 @@ func (h *handlers) forkSession(w http.ResponseWriter, r *http.Request) {
 	// 存在性）、锚点∈timeline（含继承轮）。
 	runs, err := h.sessions.ListRunsBySession(r.Context(), ownerID, sessionID)
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	var anchor *store.Run
@@ -379,7 +379,7 @@ func (h *handlers) resolveApproval(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	if run.OwnerID != ownerOf(r) {
@@ -413,7 +413,7 @@ func (h *handlers) replay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	if run.OwnerID != ownerOf(r) {
@@ -441,7 +441,7 @@ func (h *handlers) replay(w http.ResponseWriter, r *http.Request) {
 		envelopes, err = h.events.ListByRun(r.Context(), runID)
 	}
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	// 自证不变量：seq 无空洞、finish 仅 result 且至多一条。违反只告警、不阻断回放（可能是崩溃残留）。
@@ -491,7 +491,7 @@ func (h *handlers) artifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	if run.OwnerID != ownerOf(r) {
@@ -513,7 +513,7 @@ func (h *handlers) serveObject(w http.ResponseWriter, r *http.Request, key strin
 		return
 	}
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	defer obj.Body.Close()
@@ -555,7 +555,7 @@ func (h *handlers) listSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	list, err := h.sessions.ListSessions(r.Context(), ownerOf(r), limit)
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	out := make([]sessionSummaryJSON, 0, len(list))
@@ -620,7 +620,7 @@ func (h *handlers) listSessionRuns(w http.ResponseWriter, r *http.Request) {
 	sessionID := chi.URLParam(r, "sessionID")
 	runs, err := h.sessions.ListRunsBySession(r.Context(), ownerOf(r), sessionID)
 	if err != nil {
-		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
+		h.internalError(w, err)
 		return
 	}
 	if len(runs) == 0 {
@@ -628,7 +628,7 @@ func (h *handlers) listSessionRuns(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]any{"sessionId": sessionID, "runs": []sessionRunJSON{}})
 			return
 		} else if !errors.Is(ferr, store.ErrForkNotFound) {
-			writeProblem(w, http.StatusInternalServerError, "internal", ferr.Error())
+			h.internalError(w, ferr)
 			return
 		}
 		writeProblem(w, http.StatusNotFound, "not_found", "会话不存在")
@@ -678,6 +678,15 @@ func writeProblem(w http.ResponseWriter, status int, code, msg string) {
 		w.Header().Set("Retry-After", "1")
 	}
 	writeJSON(w, status, map[string]string{"code": code, "message": msg})
+}
+
+// internalError 记录结构化日志并返回脱敏的 500 响应。
+// 真实错误只记在日志里，不暴露内部细节给客户端（防止信息泄露）。
+func (h *handlers) internalError(w http.ResponseWriter, err error) {
+	if h.log != nil {
+		h.log.Error("internal error", "err", err)
+	}
+	writeJSON(w, http.StatusInternalServerError, map[string]string{"code": "internal", "message": "internal server error"})
 }
 
 // usageStats：GET /stats/usage?days=30 —— runs 表 owner 域聚合（合计/按天/按模式）。

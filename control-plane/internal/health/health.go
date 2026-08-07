@@ -15,7 +15,7 @@ type Check func(context.Context) error
 type Report struct {
 	Healthy    bool
 	HTTPStatus int
-	Body       map[string]string // name -> "ok" | 错误文本
+	Body       map[string]string // name -> "ok" | "unhealthy"
 }
 
 // Aggregate 把 name→err 结果聚合：全 nil→200 healthy；任一非 nil→503 且 body 标注失败项。
@@ -25,7 +25,7 @@ func Aggregate(results map[string]error) Report {
 	for name, err := range results {
 		if err != nil {
 			healthy = false
-			body[name] = err.Error()
+			body[name] = "unhealthy"
 		} else {
 			body[name] = "ok"
 		}

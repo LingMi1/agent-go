@@ -17,7 +17,7 @@ func TestArtifactListByOwner(t *testing.T) {
 	}
 	GuardTestDSN(t, dsn)
 	ctx := context.Background()
-	pool, err := store.NewPool(ctx, dsn)
+	pool, err := store.NewPool(ctx, dsn, 0)
 	if err != nil {
 		t.Fatalf("NewPool: %v", err)
 	}

@@ -3,7 +3,7 @@
 // 结构照抄 scheduler.Scheduler 骨架——tick 主循环 + ListDue + 先 Admit 后 Claim +
 // 独立 slots 信号量（不吃交互准入配额）——但每到期 connector 语义多三步：
 // 解密 PAT → 拉外部 API(Poll) → Normalize → 匹配 triggers → 命中渲染 query_template
-// → dispatch.Run(nullSink) 起 headless run（与定时触发逐字同构，事件是 push 特例）。
+// → dispatch.Run(stream.NullSink) 起 headless run（与定时触发逐字同构，事件是 push 特例）。
 //
 // 默认关：main.go 仅在 POLLER_ENABLED 且 SECRET_MASTER_KEY 非空时起本 goroutine——
 // 关时零行为变化（既有链路零回归）。
@@ -19,18 +19,10 @@ import (
 
 	"my-agent/control-plane/internal/connector"
 	"my-agent/control-plane/internal/dispatch"
-	"my-agent/control-plane/internal/event"
 	"my-agent/control-plane/internal/secret"
 	"my-agent/control-plane/internal/store"
+	"my-agent/control-plane/internal/stream"
 )
-
-// nullSink：headless run 空写端（事件仍由 hub 先落账本，会话列表/回放照常可见）。
-// 与 scheduler.nullSink 逐字同构。
-type nullSink struct{}
-
-func (nullSink) WriteFrame(event.Envelope) error { return nil }
-func (nullSink) WriteHeartbeat() error           { return nil }
-func (nullSink) WriteDone() error                { return nil }
 
 // Poller 周期扫描到期连接器并触发匹配的 run。
 type Poller struct {
@@ -210,7 +202,7 @@ func (p *Poller) processConnector(c store.Connector) {
 	}
 }
 
-// fire：一条命中 → 渲染 query_template → dispatch.Run(nullSink) 起 headless run。
+// fire：一条命中 → 渲染 query_template → dispatch.Run(stream.NullSink) 起 headless run。
 // 与定时触发逐字同构（同一 dispatch.Run 单收口，事件是 push 特例）。
 // 返回 dispatch.Run 的 error（起 run 失败）——供上层据此决定是否推进游标（#6）。
 func (p *Poller) fire(c store.Connector, t store.Trigger, ev connector.InternalEvent) error {
@@ -232,7 +224,7 @@ func (p *Poller) fire(c store.Connector, t store.Trigger, ev connector.InternalE
 	if err := p.dispatcher.Run(runCtx, dispatch.StartCommand{
 		RunID: runID, SessionID: sessionID, OwnerID: c.OwnerID,
 		Query: query, AgentType: t.AgentType,
-	}, nullSink{}); err != nil {
+	}, stream.NullSink{}); err != nil {
 		p.warn("triggered run failed", "triggerId", t.TriggerID, "err", err)
 		return err
 	}

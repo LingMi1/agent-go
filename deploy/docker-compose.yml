@@ -4,6 +4,9 @@
 #   一键起完整平台（含控制面/认知面，前端由控制面单端口托管）：
 #     docker compose --profile app up -d --build   （即 make stack-up）
 # 业务服务挂 profile "app"：保证 make infra-up 语义不变（不触发镜像构建）。
+#
+# 注意：以下 ports 映射仅用于本地开发。生产环境（含 K8s/Nomad）应移除 ports 映射
+# 或限制为 127.0.0.1，通过 overlay 网络或 Service Mesh 做服务间通信。
 
 services:
   control-plane:
@@ -29,7 +32,8 @@ services:
       REDIS_ADDR: redis:6379
       RATE_LIMIT_ENABLED: "true"
       BOOTSTRAP_ADMIN_USER: ${BOOTSTRAP_ADMIN_USER:-admin}
-      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD must be set}
+    # NOTE: 以下 ports 映射仅用于本地开发。生产环境应移除 ports 映射或限制为 127.0.0.1。
     ports:
       - "${CONTROL_PLANE_PORT:-8080}:8080"
     healthcheck:

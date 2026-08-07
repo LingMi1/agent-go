@@ -13,7 +13,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:17
+        image: postgres:16
         env:
           POSTGRES_USER: agent
           POSTGRES_PASSWORD: agent_pwd
@@ -78,3 +78,25 @@ jobs:
       - name: Web unit tests
         working-directory: web
         run: npm run test
+
+      # ── Docker build (no push) ──
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build control-plane image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.control-plane
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build cognition image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.cognition
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
