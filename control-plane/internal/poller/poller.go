@@ -170,7 +170,7 @@ func (p *Poller) processConnector(c store.Connector) {
 		return // 拉取失败不推进游标（下拍以同游标重试）
 	}
 
-	trigs, err := p.triggers.ListByConnector(context.Background(), c.ConnectorID)
+	trigs, err := p.triggers.ListByConnector(pollCtx, c.ConnectorID)
 	if err != nil {
 		p.warn("poller list triggers failed", "connectorId", c.ConnectorID, "err", err)
 		return
@@ -204,7 +204,7 @@ func (p *Poller) processConnector(c store.Connector) {
 		return
 	}
 	// 推进游标（即便无匹配也要推进，避免重复拉同一批；拉取失败/派发失败已提前 return 不推进）。
-	if err := p.connectors.UpdateCursor(context.Background(), c.ConnectorID, newCursor, lastPollID); err != nil {
+	if err := p.connectors.UpdateCursor(pollCtx, c.ConnectorID, newCursor, lastPollID); err != nil {
 		p.warn("poller update cursor failed", "connectorId", c.ConnectorID, "err", err)
 	}
 }

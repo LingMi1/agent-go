@@ -119,7 +119,14 @@ func main() {
 
 	// M11 定时触发：调度器 goroutine（优雅停机时 cancel；headless run 自建超时）。
 	schedCtx, schedCancel := context.WithCancel(context.Background())
-	go scheduler.New(schedRepo, runs, dispatcher, cfg.RunTimeout, 30*time.Second, 2, log).Run(schedCtx)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("scheduler panic recovered", "panic", r)
+			}
+		}()
+		scheduler.New(schedRepo, runs, dispatcher, cfg.RunTimeout, 30*time.Second, 2, log).Run(schedCtx)
+	}()
 
 	// D2 Proactive 连接器：独立 poller goroutine（默认关）。仅当 POLLER_ENABLED 且
 	// SECRET_MASTER_KEY 合法（32 字节）时才起——否则零行为变化（既有链路零回归）。
@@ -129,7 +136,14 @@ func main() {
 			log.Warn("poller enabled but SECRET_MASTER_KEY missing/invalid; poller not started", "err", kerr)
 		} else {
 			gh := connector.NewGitHub()
-			go poller.New(connectorRepo, triggerRepo, dispatcher, gh, key, cfg.RunTimeout, 30*time.Second, 2, log).Run(pollCtx)
+			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error("poller panic recovered", "panic", r)
+					}
+				}()
+				poller.New(connectorRepo, triggerRepo, dispatcher, gh, key, cfg.RunTimeout, 30*time.Second, 2, log).Run(pollCtx)
+			}()
 			log.Info("proactive poller started")
 		}
 	}
