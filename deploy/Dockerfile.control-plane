@@ -12,7 +12,7 @@ COPY web/ ./
 RUN npm run build
 
 # ---- 阶段 2：Go 构建 + proto stub 再生成 ----
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 # buf via go install (avoid slow GHCR pull). Override GOPROXY to use regional mirror if needed.
 ARG GOPROXY=https://proxy.golang.org,direct
 ENV GOPROXY=${GOPROXY}
