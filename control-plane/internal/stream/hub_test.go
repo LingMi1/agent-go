@@ -66,6 +66,7 @@ type fakeSink struct {
 
 func (s *fakeSink) WriteFrame(e event.Envelope) error { s.frames = append(s.frames, e); return nil }
 func (s *fakeSink) WriteHeartbeat() error             { s.heartbeats++; return nil }
+func (s *fakeSink) WriteDone() error                  { return nil }
 
 type fakeEventRepo struct{ appended []event.Envelope }
 
@@ -75,6 +76,15 @@ func (r *fakeEventRepo) Append(_ context.Context, e event.Envelope) error {
 }
 func (r *fakeEventRepo) ListByRun(context.Context, string) ([]event.Envelope, error) {
 	return r.appended, nil
+}
+func (r *fakeEventRepo) ListByRunAfter(_ context.Context, _ string, afterSeq uint64) ([]event.Envelope, error) {
+	var out []event.Envelope
+	for _, e := range r.appended {
+		if e.Seq > afterSeq {
+			out = append(out, e)
+		}
+	}
+	return out, nil
 }
 
 func goldenEnvelopes() []event.Envelope {

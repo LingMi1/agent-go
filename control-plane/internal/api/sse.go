@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"my-agent/control-plane/internal/event"
 	"my-agent/control-plane/internal/metrics"
@@ -33,6 +34,10 @@ func newSSESink(w http.ResponseWriter) (*sseSink, error) {
 }
 
 func (s *sseSink) WriteFrame(e event.Envelope) error {
+	// 写超时保护：防止慢客户端拖慢整条 SSE 管道。超时后 TCP 写失败，
+	// Pump 捕获 SINK_WRITE_ERROR 并停止该 run——不影响其他连接。
+	rc := http.NewResponseController(s.w)
+	_ = rc.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	data, err := event.ToSSEFrame(e)
 	if err != nil {
 		return err
@@ -50,6 +55,14 @@ func (s *sseSink) WriteFrame(e event.Envelope) error {
 
 func (s *sseSink) WriteHeartbeat() error {
 	if _, err := fmt.Fprint(s.w, "event: heartbeat\ndata: {\"messageType\":\"heartbeat\"}\n\n"); err != nil {
+		return err
+	}
+	s.f.Flush()
+	return nil
+}
+
+func (s *sseSink) WriteDone() error {
+	if _, err := fmt.Fprint(s.w, "event: done\ndata: {\"messageType\":\"done\"}\n\n"); err != nil {
 		return err
 	}
 	s.f.Flush()

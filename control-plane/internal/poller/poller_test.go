@@ -189,6 +189,9 @@ func (fakeEvents) Append(context.Context, event.Envelope) error { return nil }
 func (fakeEvents) ListByRun(context.Context, string) ([]event.Envelope, error) {
 	return nil, nil
 }
+func (fakeEvents) ListByRunAfter(context.Context, string, uint64) ([]event.Envelope, error) {
+	return nil, nil
+}
 
 // 端到端匹配：fake github Poll 返回固定事件 → poller 认领(Claim)、渲染 query_template、
 // 起 run（断言 RunRequest 里的 Query/SessionID/OwnerID/AgentType）、推进游标(UpdateCursor)。

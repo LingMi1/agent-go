@@ -27,6 +27,7 @@ type nullSink struct{}
 
 func (nullSink) WriteFrame(event.Envelope) error { return nil }
 func (nullSink) WriteHeartbeat() error           { return nil }
+func (nullSink) WriteDone() error                { return nil }
 
 // Scheduler 周期扫描并触发到期任务。
 type Scheduler struct {

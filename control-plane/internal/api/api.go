@@ -258,6 +258,19 @@ func (h *handlers) startRun(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	runID := uuid.NewString()
+	// M1 幂等去重：Idempotency-Key header 防网络重试产生重复 run。
+	if idemKey := r.Header.Get("Idempotency-Key"); idemKey != "" {
+		if acquired, err := h.rateLimiter.TryAcquireIdempotencyKey(r.Context(), idemKey, runID, 5*time.Minute); err != nil {
+			h.log.Warn("idempotency check failed, allowing request", "err", err)
+		} else if !acquired {
+			w.Header().Set("X-Run-Id", runID)
+			w.Header().Set("X-Idempotency-Conflict", "true")
+			writeProblem(w, http.StatusConflict, "idempotency_conflict", "该请求已提交，请检查已有 run")
+			return
+		}
+	}
+
 	h.streamRun(w, r, dispatch.StartCommand{
 		SessionID: sessionID, OwnerID: ownerID, Query: body.Query, AgentType: agentType, OutputFormat: body.OutputFormat, ImageGen: body.ImageGen,
 		ForkFromSessionID: forkFromSessionID, ForkFromRunID: forkFromRunID,
@@ -407,7 +420,26 @@ func (h *handlers) replay(w http.ResponseWriter, r *http.Request) {
 		writeProblem(w, http.StatusForbidden, "forbidden", "无权访问该 run")
 		return
 	}
-	envelopes, err := h.events.ListByRun(r.Context(), runID)
+
+	// 增量回放：支持 ?after={N} 查询参数或 Last-Event-ID SSE 标准头。
+	// 对标 README "send GET /runs/{id}/events?after={N} and get byte-identical output"。
+	var afterSeq uint64
+	if afterStr := r.URL.Query().Get("after"); afterStr != "" {
+		if n, err := strconv.ParseUint(afterStr, 10, 64); err == nil {
+			afterSeq = n
+		}
+	} else if lastID := r.Header.Get("Last-Event-ID"); lastID != "" {
+		if n, err := strconv.ParseUint(lastID, 10, 64); err == nil {
+			afterSeq = n
+		}
+	}
+
+	var envelopes []event.Envelope
+	if afterSeq > 0 {
+		envelopes, err = h.events.ListByRunAfter(r.Context(), runID, afterSeq)
+	} else {
+		envelopes, err = h.events.ListByRun(r.Context(), runID)
+	}
 	if err != nil {
 		writeProblem(w, http.StatusInternalServerError, "internal", err.Error())
 		return

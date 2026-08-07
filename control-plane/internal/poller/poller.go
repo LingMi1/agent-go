@@ -30,6 +30,7 @@ type nullSink struct{}
 
 func (nullSink) WriteFrame(event.Envelope) error { return nil }
 func (nullSink) WriteHeartbeat() error           { return nil }
+func (nullSink) WriteDone() error                { return nil }
 
 // Poller 周期扫描到期连接器并触发匹配的 run。
 type Poller struct {

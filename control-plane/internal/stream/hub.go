@@ -68,7 +68,9 @@ func (h *Hub) Pump(ctx context.Context, runID string, s cognition.Stream, sink S
 	for {
 		select {
 		case <-ctx.Done():
-			// 客户端断开 → STOPPED；超时 → TIMEOUT。Python 侧随 gRPC 取消而停在最后 checkpoint。
+			// 客户端断开 → STOPPED；超时 → TIMEOUT。
+			// 优雅关闭：发送 done 事件让前端区分正常关机与网络故障。
+			_ = sink.WriteDone()
 			if ctx.Err() == context.DeadlineExceeded {
 				metrics.PumpErrors().WithLabelValues("RUN_TIMEOUT").Inc()
 				return Result{Status: store.StatusTimeout, ErrorCode: "RUN_TIMEOUT"}

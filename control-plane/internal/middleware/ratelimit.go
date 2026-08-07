@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,7 +49,8 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			limit = rl.runRPM
 		}
 
-		key := rateLimitKey(r)
+		window := time.Now().UTC().Unix() / 60
+		key := rateLimitKey(r, window)
 		ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
 		defer cancel()
 
@@ -64,22 +66,23 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			_ = rl.rdb.Expire(ctx, key, time.Minute)
 		}
 		if count > int64(limit) {
+			setRateLimitHeaders(w, limit, 0, window)
 			w.Header().Set("Retry-After", "60")
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			_, _ = w.Write([]byte(`{"code":"rate_limited","message":"请求过于频繁，请稍后重试"}`))
 			return
 		}
+		setRateLimitHeaders(w, limit, limit-int(count), window)
 		next.ServeHTTP(w, r)
 	})
 }
 
 // rateLimitKey 构造 Redis key：ratelimit:<ip>:<utc_minute>。
 // 优先读 X-Forwarded-For（代理/负载均衡）；无则用 RemoteAddr。
-func rateLimitKey(r *http.Request) string {
+func rateLimitKey(r *http.Request, window int64) string {
 	ip := clientIP(r)
-	// Unix timestamp 除以 60 得到当前 UTC 分钟序号（固定窗口边界）。
-	window := time.Now().UTC().Unix() / 60
+	// window 是当前 UTC 分钟序号（固定窗口边界），由调用方传入以避免计时偏差。
 	return fmt.Sprintf("ratelimit:%s:%d", ip, window)
 }
 
@@ -96,4 +99,21 @@ func clientIP(r *http.Request) string {
 		return r.RemoteAddr
 	}
 	return host
+}
+
+// setRateLimitHeaders 写入标准的限流信息头（RFC 草案）。
+func setRateLimitHeaders(w http.ResponseWriter, limit, remaining int, window int64) {
+	w.Header().Set("X-RateLimit-Limit", strconv.Itoa(limit))
+	w.Header().Set("X-RateLimit-Remaining", strconv.Itoa(remaining))
+	// 窗口重置时间 = 下一个分钟边界（Unix 秒）
+	w.Header().Set("X-RateLimit-Reset", strconv.FormatInt((window+1)*60, 10))
+}
+
+// TryAcquireIdempotencyKey 幂等去重：SETNX key → val with TTL。返回 true 表示首次获取。
+// 用于 POST /runs 的 Idempotency-Key header 去重，防止网络重试产生重复 run。
+func (rl *RateLimiter) TryAcquireIdempotencyKey(ctx context.Context, key, val string, ttl time.Duration) (bool, error) {
+	if rl == nil || rl.rdb == nil {
+		return true, nil // no Redis → 不做去重（fail-open）
+	}
+	return rl.rdb.SetNX(ctx, "idempotent:"+key, val, ttl).Result()
 }

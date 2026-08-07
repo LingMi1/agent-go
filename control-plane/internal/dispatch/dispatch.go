@@ -5,6 +5,7 @@ package dispatch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -160,10 +161,7 @@ func (d *Dispatcher) Run(ctx context.Context, cmd StartCommand, sink stream.Sink
 		_ = d.runs.FinishRun(finCtx, store.FinishRunParams{RunID: cmd.RunID, Status: store.StatusFailed, ErrorMsg: err.Error()})
 		metrics.Runs().WithLabelValues(store.StatusFailed, agentType).Inc()
 		metrics.RunDuration().WithLabelValues(agentType).Observe(time.Since(start).Seconds())
-		if log != nil {
-			log.Error("open run stream failed", "err", err)
-		}
-		return err
+		return fmt.Errorf("dispatch: open run stream: %w", err)
 	}
 
 	res := d.hub.Pump(ctx, cmd.RunID, st, sink)

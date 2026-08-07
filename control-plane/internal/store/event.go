@@ -20,6 +20,7 @@ var ErrDuplicateSeq = errors.New("store: duplicate (run_id, seq)")
 type EventRepository interface {
 	Append(ctx context.Context, e event.Envelope) error
 	ListByRun(ctx context.Context, runID string) ([]event.Envelope, error)
+	ListByRunAfter(ctx context.Context, runID string, afterSeq uint64) ([]event.Envelope, error)
 }
 
 type pgEventRepo struct{ pool *pgxpool.Pool }
@@ -61,6 +62,40 @@ func (r *pgEventRepo) ListByRun(ctx context.Context, runID string) ([]event.Enve
 			e          event.Envelope
 			msgType    string
 			payload    []byte
+		)
+		if err := rows.Scan(&e.RunID, &e.Seq, &e.MessageID, &msgType, &e.IsFinal, &e.Finish, &payload, &e.TSUnixMs); err != nil {
+			return nil, fmt.Errorf("store: scan event: %w", err)
+		}
+		e.SchemaVersion = event.SchemaVersion
+		e.Type = event.MessageType(msgType)
+		if err := e.UnmarshalPayload(payload); err != nil {
+			return nil, fmt.Errorf("store: rebuild payload (seq=%d): %w", e.Seq, err)
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("store: rows: %w", err)
+	}
+	return out, nil
+}
+
+// ListByRunAfter 返回指定 run 中 seq > afterSeq 的事件（增量回放）。
+// 对标 README 声称的 ?after={N} 语义：客户端重连时只需拉取未收事件。
+func (r *pgEventRepo) ListByRunAfter(ctx context.Context, runID string, afterSeq uint64) ([]event.Envelope, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT run_id, seq, message_id, message_type, is_final, finish, payload, ts_unix_ms
+		  FROM events WHERE run_id = $1 AND seq > $2 ORDER BY seq ASC`, runID, afterSeq)
+	if err != nil {
+		return nil, fmt.Errorf("store: list events after: %w", err)
+	}
+	defer rows.Close()
+
+	var out []event.Envelope
+	for rows.Next() {
+		var (
+			e       event.Envelope
+			msgType string
+			payload []byte
 		)
 		if err := rows.Scan(&e.RunID, &e.Seq, &e.MessageID, &msgType, &e.IsFinal, &e.Finish, &payload, &e.TSUnixMs); err != nil {
 			return nil, fmt.Errorf("store: scan event: %w", err)
