@@ -11,6 +11,7 @@ package metrics
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -186,7 +187,7 @@ func (m *Metrics) RegisterPgxPool(pool *pgxpool.Pool) {
 		if err := m.reg.Register(gf); err != nil {
 			var are prometheus.AlreadyRegisteredError
 			if !errors.As(err, &are) {
-				panic(err)
+				log.Printf("[metrics] register %s gauge failed (non-fatal): %v", g.name, err)
 			}
 		}
 	}

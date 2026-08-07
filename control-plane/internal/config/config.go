@@ -50,6 +50,9 @@ type Config struct {
 }
 
 func Load() Config {
+	// NOTE: default credentials below match docker-compose dev defaults.
+	// Production deployments MUST override PG_DSN, MINIO_ACCESS_KEY,
+	// and MINIO_SECRET_KEY via environment variables.
 	return Config{
 		HTTPAddr:          env("HTTP_ADDR", ":8080"),
 		CognitionAddr:     env("COGNITION_ADDR", "localhost:50051"),
@@ -60,8 +63,8 @@ func Load() Config {
 		MaxSteps:          int32(envInt("MAX_STEPS", 40)),
 		WebDir:            env("WEB_DIR", ""),
 		MinioEndpoint:     env("MINIO_ENDPOINT", "localhost:9000"),
-		MinioAccessKey:    env("MINIO_ACCESS_KEY", "minioadmin"),
-		MinioSecretKey:    env("MINIO_SECRET_KEY", "minioadmin"),
+		MinioAccessKey:    env("MINIO_ACCESS_KEY", "minioadmin"), // dev default
+		MinioSecretKey:    env("MINIO_SECRET_KEY", "minioadmin"), // dev default
 		MinioBucket:       env("MINIO_BUCKET", "artifacts"), // 须与认知面 COGNITION_MINIO_BUCKET 一致
 		MinioUseSSL:       env("MINIO_USE_SSL", "false") == "true",
 		// 与认知面共用一套 Qdrant：默认接受 COGNITION_QDRANT_URL（deploy/.env 单一事实源），

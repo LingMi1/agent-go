@@ -10,6 +10,7 @@ package cognition
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/sony/gobreaker/v2"
@@ -29,8 +30,7 @@ func cbSettings() gobreaker.Settings {
 			return counts.ConsecutiveFailures >= 5
 		},
 		OnStateChange: func(name string, from, to gobreaker.State) {
-			// In production this should emit Prometheus metrics or PagerDuty alerts
-			fmt.Printf("[circuit-breaker] %s: %s → %s\n", name, from, to)
+			slog.Warn("circuit breaker state change", "name", name, "from", from.String(), "to", to.String())
 		},
 	}
 }
