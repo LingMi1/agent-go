@@ -32,7 +32,7 @@ RUN buf generate
 RUN cd control-plane && CGO_ENABLED=0 go build -o /out/controlplane ./cmd/controlplane
 
 # ---- 阶段 3：运行层（alpine 而非 distroless：compose healthcheck 需要 wget） ----
-FROM alpine:3.20
+FROM alpine:3.24
 RUN adduser -D app
 COPY --from=build /out/controlplane /usr/local/bin/controlplane
 COPY --from=web /src/web/dist /app/web
