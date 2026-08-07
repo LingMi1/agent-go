@@ -25,6 +25,7 @@ import (
 	"my-agent/control-plane/internal/health"
 	"my-agent/control-plane/internal/kb"
 	"my-agent/control-plane/internal/metrics"
+	rmw "my-agent/control-plane/internal/middleware"
 	"my-agent/control-plane/internal/secret"
 	"my-agent/control-plane/internal/store"
 )
@@ -49,6 +50,7 @@ type handlers struct {
 	secretKey      []byte                       // D2：SECRET_MASTER_KEY 解码后的 AES-GCM 主密钥；空 → 连接器功能降级
 	runTimeout     time.Duration
 	maxUploadBytes int64
+	rateLimiter    *rmw.RateLimiter // HTTP 限流中间件；nil → 不限流
 	log            *slog.Logger
 	mux            *chi.Mux // 本路由自身引用；resolveIdentity 反向白名单用它判定「是否已注册的 API 路由」
 }
@@ -61,12 +63,12 @@ type handlers struct {
 // D2（docs/16）：新增 connectors/triggers 两个 repo 参数——测试传 nil 则 /connectors·/triggers 端点 503。
 // SECRET_MASTER_KEY 从 env 读取（同上就地读横切开关先例）：空或非法则 secretKey 为空，
 // 连接器功能整体降级 503（PAT 无从加密），既有测试零回归。
-func NewRouter(d *dispatch.Dispatcher, runs store.RunRepository, sessions store.SessionRepository, events store.EventRepository, artifacts artifact.Store, healthChecks map[string]health.Check, kbStore kb.Store, cog cognition.Client, stats store.StatsRepository, artifactList store.ArtifactListRepository, schedules store.SchedulesRepository, users store.UserRepository, authTokens store.SessionTokenRepository, connectors store.ConnectorRepository, triggers store.TriggerRepository, runTimeout time.Duration, webDir string, log *slog.Logger) http.Handler {
+func NewRouter(d *dispatch.Dispatcher, runs store.RunRepository, sessions store.SessionRepository, events store.EventRepository, artifacts artifact.Store, healthChecks map[string]health.Check, kbStore kb.Store, cog cognition.Client, stats store.StatsRepository, artifactList store.ArtifactListRepository, schedules store.SchedulesRepository, users store.UserRepository, authTokens store.SessionTokenRepository, connectors store.ConnectorRepository, triggers store.TriggerRepository, rateLimiter *rmw.RateLimiter, runTimeout time.Duration, webDir string, log *slog.Logger) http.Handler {
 	h := &handlers{
 		dispatcher: d, runs: runs, sessions: sessions, events: events, artifacts: artifacts,
 		healthChecks: healthChecks, kb: kbStore, cog: cog, stats: stats, artifactList: artifactList, schedules: schedules,
 		users: users, authTokens: authTokens, authRequired: config.EnvBool("AUTH_REQUIRED"),
-		connectors: connectors, triggers: triggers, runTimeout: runTimeout,
+		connectors: connectors, triggers: triggers, rateLimiter: rateLimiter, runTimeout: runTimeout,
 		maxUploadBytes: DefaultMaxUploadBytes, log: log,
 	}
 	if key, err := secret.DecodeMasterKey(os.Getenv("SECRET_MASTER_KEY")); err == nil {
@@ -92,6 +94,11 @@ func NewRouter(d *dispatch.Dispatcher, runs store.RunRepository, sessions store.
 	// metrics/Recoverer 之后，故其 401 也被指标计数、panic 也被兜住。AUTH_REQUIRED 默认关时
 	// 无 token 静默放行（ownerOf 回退 X-User-Id）——既有链路零行为变化。
 	r.Use(h.resolveIdentity)
+	// HTTP 限流（固定窗口，Redis 计数器）：挂在身份解析之后、路由之前。
+	// Redis 不可用时 fail-open（请求放行）；rateLimiter 为 nil 时零行为变化。
+	if h.rateLimiter != nil {
+		r.Use(h.rateLimiter.Middleware)
+	}
 	r.Get("/healthz", h.healthz)
 	r.Handle("/metrics", metrics.Handler()) // 与 /healthz 同级：只读、无副作用（docs/11 §3.1）
 	r.Post("/runs", h.startRun)

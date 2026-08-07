@@ -26,7 +26,7 @@ func TestSPAHandler(t *testing.T) {
 		t.Fatalf("write asset: %v", err)
 	}
 
-	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, webDir, discardLogger())
+	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, webDir, discardLogger())
 	do := func(method, path string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, httptest.NewRequest(method, path, nil))
@@ -67,7 +67,7 @@ func TestSPAHandler(t *testing.T) {
 	}
 
 	// 6) webDir 为空 → 不注册回退，根路径 404（dev 模式行为不变）。
-	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	rec2 := httptest.NewRecorder()
 	bare.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/", nil))
 	if rec2.Code != http.StatusNotFound {

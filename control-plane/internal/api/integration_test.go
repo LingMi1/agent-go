@@ -188,7 +188,7 @@ func newE2EEnv(t *testing.T) *e2eEnv {
 	d := dispatch.New(4, runs, client, hub, 40, discardLogger())
 	// D3：装配真实 user/token repo（e2e 覆盖注册→登录→带 token run 归属正确）。
 	router := api.NewRouter(d, runs, store.NewSessionRepository(pool), events, nil, nil, nil, nil, nil, nil, nil,
-		store.NewUserRepository(pool), store.NewSessionTokenRepository(pool), nil, nil, time.Minute, "", discardLogger())
+		store.NewUserRepository(pool), store.NewSessionTokenRepository(pool), nil, nil, nil, time.Minute, "", discardLogger())
 	return &e2eEnv{ctx: ctx, runs: runs, events: events, router: router, cog: cog}
 }
 

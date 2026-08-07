@@ -122,7 +122,7 @@ func (f *fakeTokens) DeleteToken(_ context.Context, token string) error {
 
 // authRouter 装配一个只有 auth/admin 相关依赖的路由（其余 nil）。
 func authRouter(users store.UserRepository, tokens store.SessionTokenRepository) http.Handler {
-	return api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, users, tokens, nil, nil, time.Minute, "", discardLogger())
+	return api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, users, tokens, nil, nil, nil, time.Minute, "", discardLogger())
 }
 
 func doJSON(t *testing.T, router http.Handler, method, path, body, bearer, xuser string) *httptest.ResponseRecorder {

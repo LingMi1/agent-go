@@ -26,8 +26,10 @@ services:
       OTEL_ENABLED: ${OTEL_ENABLED:-false}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://tempo:4317
       OTEL_SERVICE_NAME: my-agent-control-plane
-      BOOTSTRAP_ADMIN_USER: admin
-      BOOTSTRAP_ADMIN_PASSWORD: admin123
+      REDIS_ADDR: redis:6379
+      RATE_LIMIT_ENABLED: "true"
+      BOOTSTRAP_ADMIN_USER: ${BOOTSTRAP_ADMIN_USER:-admin}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-admin123}
     ports:
       - "${CONTROL_PLANE_PORT:-8080}:8080"
     healthcheck:
@@ -118,7 +120,7 @@ services:
       retries: 10
 
   redis:
-    # 缓存 / 限流 / 流式 pub-sub 扇出
+    # HTTP 限流（固定窗口计数器）—— Go 控制面直接接线。
     image: redis:7-alpine
     container_name: my-agent-redis
     command: ["redis-server", "--appendonly", "yes"]
@@ -151,15 +153,18 @@ services:
       timeout: 3s
       retries: 10
 
-  nats:
-    # 事件总线（为 Proactive 连接器/事件驱动预留；开启 JetStream 持久化）
-    image: nats:2.10-alpine
-    container_name: my-agent-nats
-    command: ["-js", "-sd", "/data"]
-    ports:
-      - "${NATS_PORT:-4222}:4222"
-    volumes:
-      - ./volumes/nats:/data
+  # nats —— 已移除：当前单实例架构下 Go/Python 均未接线。
+  # 需多实例事件广播时恢复此 service 并添加 nats-io/nats.go 客户端。
+  #
+  # nats:
+  #   # 事件总线（为 Proactive 连接器/事件驱动预留；开启 JetStream 持久化）
+  #   image: nats:2.10-alpine
+  #   container_name: my-agent-nats
+  #   command: ["-js", "-sd", "/data"]
+  #   ports:
+  #     - "${NATS_PORT:-4222}:4222"
+  #   volumes:
+  #     - ./volumes/nats:/data
 
   tempo:
     # 分布式追踪后端（docs/18 §3.2）：原生 OTLP receiver，两面服务直连导出，无 collector 中转。

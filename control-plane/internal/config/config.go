@@ -41,6 +41,12 @@ type Config struct {
 	// D2 Proactive 连接器（docs/16，默认关；关时零行为变化）。
 	SecretMasterKey string // SECRET_MASTER_KEY：AES-GCM 主密钥（32 字节 base64）。空 → 连接器端点 503、poller 不起
 	PollerEnabled   bool   // POLLER_ENABLED 为真（1/true/yes/on，大小写不敏感）：起独立轮询 goroutine（且须 SecretMasterKey 非空）
+
+	// Redis（HTTP 限流：固定窗口计数器）。Redis 不可用时 fail-open（请求放行）。
+	RedisAddr       string // REDIS_ADDR：Redis 连接地址（host:port）。空 → 不接 Redis，限流关闭
+	RateLimitEnabled bool  // RATE_LIMIT_ENABLED（1/true/yes/on）：启用限流中间件
+	RateLimitRPM    int    // RATE_LIMIT_RPM：全部 API 的全局每分钟上限（默认 60）
+	RateLimitRunRPM int    // RATE_LIMIT_RUN_RPM：POST /runs 的每分钟上限（默认 10，比全局更严）
 }
 
 func Load() Config {
@@ -74,6 +80,11 @@ func Load() Config {
 		// D2 连接器：默认关。SECRET_MASTER_KEY 空则连接器功能整体降级（端点 503、poller 不起）。
 		SecretMasterKey: env("SECRET_MASTER_KEY", ""),
 		PollerEnabled:   EnvBool("POLLER_ENABLED"),
+		// Redis 限流：默认关（未配置 REDIS_ADDR 时关闭）。Redis 不可用则 fail-open。
+		RedisAddr:       env("REDIS_ADDR", ""),
+		RateLimitEnabled: EnvBool("RATE_LIMIT_ENABLED"),
+		RateLimitRPM:    envInt("RATE_LIMIT_RPM", 60),
+		RateLimitRunRPM: envInt("RATE_LIMIT_RUN_RPM", 10),
 	}
 }
 

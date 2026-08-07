@@ -50,7 +50,7 @@ func (f *fakeAdminStats) AdminUsageReport(context.Context, int) (store.UsageRepo
 }
 
 func adminRouter(users store.UserRepository, tokens store.SessionTokenRepository, runs store.RunRepository, stats store.StatsRepository) http.Handler {
-	return api.NewRouter(nil, runs, nil, nil, nil, nil, nil, nil, stats, nil, nil, users, tokens, nil, nil, time.Minute, "", discardLogger())
+	return api.NewRouter(nil, runs, nil, nil, nil, nil, nil, nil, stats, nil, nil, users, tokens, nil, nil, nil, time.Minute, "", discardLogger())
 }
 
 func TestAdminEndpoints(t *testing.T) {

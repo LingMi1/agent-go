@@ -31,4 +31,4 @@ PostgreSQL 或认知面连接失败会阻止控制面正常启动。MinIO 桶检
 
 ## 限制与消歧
 
-双平面不等于两个对外 API：Python 不是公网入口。README 提到 SSE/WS，但当前路由只有 SSE，没有 WebSocket 服务。Redis 和 NATS 容器也不在这条请求链中。跨面使用的是 gRPC 流，而浏览器接收的是 HTTP SSE。
+双平面不等于两个对外 API：Python 不是公网入口。README 提到 SSE/WS，但当前路由只有 SSE，没有 WebSocket 服务。Redis 容器为 HTTP 限流提供固定窗口计数器；NATS 已从 docker-compose 移除（单实例架构不需要事件总线）。跨面使用的是 gRPC 流，而浏览器接收的是 HTTP SSE。

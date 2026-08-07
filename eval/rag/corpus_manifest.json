@@ -336,7 +336,7 @@
       "source_files": ["deploy/docker-compose.yml", "deploy/.env.example", "control-plane/internal/config/config.go", "cognition/cognition/config.py"],
       "facts": [
         {"fact_id": "deployment_docker_config_infrastructure_f01", "statement": "Compose 的 app profile 启动 control-plane 和 cognition，默认 profile 提供基础设施。", "source_file": "deploy/docker-compose.yml", "source_symbol": "services.control-plane/cognition", "confidence": "verified"},
-        {"fact_id": "deployment_docker_config_infrastructure_f02", "statement": "Compose 定义 PostgreSQL、Qdrant、Redis、MinIO、NATS 和可选 Tempo 服务。", "source_file": "deploy/docker-compose.yml", "source_symbol": "services", "confidence": "verified"}
+        {"fact_id": "deployment_docker_config_infrastructure_f02", "statement": "Compose 定义 PostgreSQL、Qdrant、Redis、MinIO 和可选 Tempo 服务（NATS 已移除）。", "source_file": "deploy/docker-compose.yml", "source_symbol": "services", "confidence": "verified"}
       ]
     },
     {

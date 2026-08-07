@@ -32,4 +32,4 @@ schedules 保存 owner、固定 session、query、agent type、间隔、下次�
 
 ## 限制与消歧
 
-当前外部连接器只有 GitHub PAT 轮询，不是 webhook，也没有 Gmail、飞书或 OAuth。`needs_approval` 只能引导已配置的 ReAct 工具审批，不能让 Plan 模式自动获得 HITL。NATS 未参与触发链，主动事件直接由 Go poller 调用 Dispatcher。
+当前外部连接器只有 GitHub PAT 轮询，不是 webhook，也没有 Gmail、飞书或 OAuth。`needs_approval` 只能引导已配置的 ReAct 工具审批，不能让 Plan 模式自动获得 HITL。主动事件直接由 Go poller 调用 Dispatcher（NATS 已移除，单实例不需要事件总线）。

@@ -28,9 +28,10 @@ This project is my answer to those questions.
 graph LR
     Browser["Browser (React/Vite)"] -- "SSE" --> CP["Go Control Plane (:8080)"]
     CP -- "gRPC" --> CN["Python Cognition (:50051)"]
-    CP -- "event ledger" --> PG[("PostgreSQL 17")]
+    CP -- "event ledger" --> PG[("PostgreSQL 16")]
     CP -- "artifact storage" --> MinIO[("MinIO")]
     CP -- "vector search" --> Qdrant[("Qdrant")]
+    CP -- "rate limit" --> Redis[("Redis 7")]
     CN -- "LLM calls" --> LLM["Anthropic / DeepSeek"]
     CN -- "checkpoint" --> PG
     CN -- "RAG retrieval" --> Qdrant
@@ -98,7 +99,7 @@ graph LR
 | Frontend | React 19, TypeScript, Tailwind CSS v4, Vite, shadcn/ui |
 | Control Plane | Go 1.25, Chi router, pgx, gRPC, Prometheus, OpenTelemetry |
 | Cognition Plane | Python 3.12, LangGraph, LangChain, gRPC |
-| Infrastructure | PostgreSQL 17, Qdrant, MinIO |
+| Infrastructure | PostgreSQL 16, Qdrant, MinIO, Redis 7 |
 | Containerization | Docker Compose, multi-stage Dockerfiles |
 
 ---
@@ -165,6 +166,7 @@ cd web && npm run dev
 │   │   ├── health/         # Concurrent health check aggregation
 │   │   ├── kb/             # Direct Qdrant management (list/delete)
 │   │   ├── metrics/        # Prometheus metrics
+│   │   ├── middleware/     # HTTP middleware (rate limit, request ID)
 │   │   ├── observability/  # OpenTelemetry seam
 │   │   ├── poller/         # Background connector polling
 │   │   ├── scheduler/      # Cron-based scheduled runs
@@ -230,8 +232,8 @@ The control plane is I/O-bound (SSE fan-out, PostgreSQL writes, request routing)
 ### 4. Hand-written ReAct (not `create_react_agent`)
 LangGraph's `create_react_agent` abstracts away the think↔tools loop, but it hides critical edge cases: tool error recovery, step limit enforcement at the graph level, and what happens when a tool returns malformed output. I built the ReAct graph from primitives (`StateGraph`, `ToolNode`, custom conditional edges) so every decision point is explicit and testable.
 
-### 5. Three-tier admission control
-Semaphore-weighted admission (reject early → HTTP 429) → in-progress cap (prevent one user from hogging) → global max (protect the database). Context cancellation propagates from browser disconnect all the way through gRPC to the cognition plane's LLM call.
+### 5. Concurrency admission with backpressure
+A weighted semaphore caps in-flight runs (`MAX_CONCURRENT_RUNS`, default 16). Requests above the cap receive an immediate HTTP 429 with `Retry-After: 1`, protecting downstream (PostgreSQL, LLM APIs) from overcommit. A Redis-based rate limiter adds an independent layer of per-IP throttling at the HTTP middleware level (fail-open if Redis is unavailable). Context cancellation propagates from browser disconnect all the way through gRPC to the cognition plane's LLM call.
 
 ### 6. Prompt injection defense (three layers)
 Modeled after OWASP Top 10 for LLM: (1) input detection — classify suspicious patterns before they reach the LLM, (2) prompt isolation — wrap user input with delimiters and system prompt hardening, (3) output filtering — scan the model's response for leaked system instructions before returning to the user.

@@ -41,7 +41,7 @@ func (f *fakeSchedules) Claim(_ context.Context, _, _ string) (bool, error)     
 
 func TestSchedulesEndpoints(t *testing.T) {
 	fs := &fakeSchedules{byOwner: map[string][]store.Schedule{}}
-	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fs, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fs, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	// 创建：默认会话 sched-*、agentType 兜底 react、间隔下限校验。
 	req := httptest.NewRequest(http.MethodPost, "/schedules",
 		strings.NewReader(`{"query":"每小时巡检","intervalSeconds":3600,"agentType":"weird"}`))
@@ -91,7 +91,7 @@ func TestSchedulesEndpoints(t *testing.T) {
 	}
 
 	// nil 降级。
-	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	g := httptest.NewRequest(http.MethodGet, "/schedules", nil)
 	grec := httptest.NewRecorder()
 	bare.ServeHTTP(grec, g)

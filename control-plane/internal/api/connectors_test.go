@@ -96,7 +96,7 @@ func TestConnectorsEndpoints(t *testing.T) {
 	t.Setenv("SECRET_MASTER_KEY", testMasterKeyB64())
 	fc := &fakeConnectors{byOwner: map[string][]store.Connector{}}
 	ft := &fakeTriggers{byOwner: map[string][]store.Trigger{}}
-	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, nil, time.Minute, "", discardLogger())
 
 	// 创建：PAT 被 Seal（密文非空且不含明文），Kind 兜底 github、Enabled、owner 归属。
 	rec := do(router, http.MethodPost, "/connectors", `{"kind":"github","pat":"ghp_secret123","pollIntervalS":3600}`, "u1")
@@ -148,7 +148,7 @@ func TestTriggersEndpoints(t *testing.T) {
 	// 连接器 c1 属 u1（触发规则 connectorId 归属校验依赖它）。
 	fc := &fakeConnectors{byOwner: map[string][]store.Connector{"u1": {{ConnectorID: "c1", OwnerID: "u1"}}}}
 	ft := &fakeTriggers{byOwner: map[string][]store.Trigger{}}
-	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, nil, time.Minute, "", discardLogger())
 
 	// 创建：agentType 采纳、needsApproval、filter 落库。
 	body := `{"connectorId":"c1","eventType":"issue","queryTemplate":"回复 {{title}}","filter":{"repo":"o/r"},"agentType":"plan_solve","needsApproval":true}`
@@ -186,7 +186,7 @@ func TestTriggersEndpoints(t *testing.T) {
 // 降级：仓库 nil → 503；仓库在但 SECRET_MASTER_KEY 空 → 503（PAT 无从加密）。
 func TestConnectorsDowngrade(t *testing.T) {
 	// nil 仓库（无 key）→ 503。
-	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	if r := do(bare, http.MethodGet, "/connectors", "", "u1"); r.Code != http.StatusServiceUnavailable {
 		t.Fatalf("nil 连接器应 503: %d", r.Code)
 	}
@@ -198,7 +198,7 @@ func TestConnectorsDowngrade(t *testing.T) {
 	t.Setenv("SECRET_MASTER_KEY", "")
 	fc := &fakeConnectors{byOwner: map[string][]store.Connector{}}
 	ft := &fakeTriggers{byOwner: map[string][]store.Trigger{}}
-	noKey := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, time.Minute, "", discardLogger())
+	noKey := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fc, ft, nil, time.Minute, "", discardLogger())
 	if r := do(noKey, http.MethodGet, "/connectors", "", "u1"); r.Code != http.StatusServiceUnavailable {
 		t.Fatalf("无 key 连接器应 503: %d", r.Code)
 	}

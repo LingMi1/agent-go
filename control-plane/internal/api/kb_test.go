@@ -50,7 +50,7 @@ func TestKbDocsEndpoints(t *testing.T) {
 		{SourceID: "corpus-x", FileName: "x.md", Chunks: 1, CreatedAt: 50},
 	}}
 	fc := &fakeIngestCog{}
-	router := api.NewRouter(nil, nil, nil, nil, nil, nil, fk, fc, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, nil, nil, nil, nil, nil, fk, fc, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	// GET：kb 归属由 X-User-Id 推导；uploads 来源带 downloadUrl，脚本灌库来源不带。
 	req := httptest.NewRequest(http.MethodGet, "/kb/docs", nil)
 	req.Header.Set("X-User-Id", "u1")
@@ -105,7 +105,7 @@ func TestKbDocsEndpoints(t *testing.T) {
 	}
 
 	// nil 依赖降级 503。
-	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	bare := api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	for _, m := range []string{http.MethodGet, http.MethodDelete} {
 		r := httptest.NewRequest(m, "/kb/docs?source=x", nil)
 		w := httptest.NewRecorder()

@@ -32,4 +32,4 @@ SSE 断线会取消活 run，不能用 Last-Event-ID 原地续跑。无 PG 时 c
 
 ## 限制与消歧
 
-仓库没有完整 Eval harness、60 条 RAG 标注集、Recall@5 数据或 20 组并行耗时基准；这些指标均为 unknown。Flow、NL2SQL/TableRAG、Gmail/飞书、gVisor/microVM、Vault/KMS 和 WebSocket 未实现。README 中 Redis/NATS/WS 等架构词不能覆盖源码接线事实。
+仓库没有完整 Eval harness、60 条 RAG 标注集、Recall@5 数据或 20 组并行耗时基准；这些指标均为 unknown。Flow、NL2SQL/TableRAG、Gmail/飞书、gVisor/microVM、Vault/KMS 和 WebSocket 未实现。Redis 已接线用于 HTTP 限流；NATS 已移除。

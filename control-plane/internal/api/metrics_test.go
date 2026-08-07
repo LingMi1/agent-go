@@ -13,7 +13,7 @@ import (
 
 // newMetricsRouter：照 health_test.go 模板，nil 注入全部依赖的最小路由器。
 func newMetricsRouter() http.Handler {
-	return api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	return api.NewRouter(nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 }
 
 // scrapeMetrics 打一次 GET /metrics，断言 200 并返回文本 exposition。

@@ -108,7 +108,7 @@ func _multipart(t *testing.T, field, name, mimeType string, data []byte) (*bytes
 func TestUploadHandler(t *testing.T) {
 	arts := &fakeArtifacts{objs: map[string][]byte{}}
 	runs := &fakeRuns{runs: map[string]store.Run{}}
-	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	do := func(body *bytes.Buffer, ct, user string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodPost, "/uploads?sessionId=s1", body)
 		req.Header.Set("Content-Type", ct)
@@ -154,7 +154,7 @@ func TestUploadHandler(t *testing.T) {
 
 	// 4) 超大小上限 → 413（MAX_UPLOAD_BYTES 环境变量可配）。
 	t.Setenv("MAX_UPLOAD_BYTES", "10")
-	smallRouter := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	smallRouter := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	body4, ct4 := _multipart(t, "file", "big.txt", "text/plain", bytes.Repeat([]byte("a"), 1024))
 	req := httptest.NewRequest(http.MethodPost, "/uploads", body4)
 	req.Header.Set("Content-Type", ct4)
@@ -166,7 +166,7 @@ func TestUploadHandler(t *testing.T) {
 	}
 
 	// 5) 存储未配置 → 503。
-	nilRouter := api.NewRouter(nil, runs, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	nilRouter := api.NewRouter(nil, runs, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	body5, ct5 := _multipart(t, "file", "a.txt", "text/plain", []byte("x"))
 	req5 := httptest.NewRequest(http.MethodPost, "/uploads", body5)
 	req5.Header.Set("Content-Type", ct5)

@@ -2,20 +2,13 @@ module my-agent/control-plane
 
 go 1.25.0
 
-// 依赖在各里程碑落地时通过 `go get` 引入并 `go mod tidy`，避免空 require 块。
-// 计划内主要依赖（M1 起逐步引入）：
-//   - github.com/go-chi/chi/v5        HTTP 路由
-//   - github.com/jackc/pgx/v5         PostgreSQL 驱动（配合 sqlc 生成类型安全查询）
-//   - golang.org/x/sync               errgroup / semaphore（有界并发与背压）
-//   - google.golang.org/grpc          与 Python 认知面的 gRPC 流式通信
-//   - github.com/redis/go-redis/v9    缓存 / 限流 / pub-sub
-
 require (
 	github.com/go-chi/chi/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/prometheus/client_golang v1.23.2
+	github.com/redis/go-redis/v9 v9.7.3
 	github.com/sony/gobreaker/v2 v2.4.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.69.0
 	go.opentelemetry.io/otel v1.44.0
@@ -32,6 +25,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

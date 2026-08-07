@@ -28,9 +28,10 @@
 graph LR
     Browser["浏览器 (React/Vite)"] -- "SSE" --> CP["Go 控制面 (:8080)"]
     CP -- "gRPC" --> CN["Python 认知面 (:50051)"]
-    CP -- "事件账本" --> PG[("PostgreSQL 17")]
+    CP -- "事件账本" --> PG[("PostgreSQL 16")]
     CP -- "产物存储" --> MinIO[("MinIO")]
     CP -- "向量检索" --> Qdrant[("Qdrant")]
+    CP -- "速率限制" --> Redis[("Redis 7")]
     CN -- "LLM 调用" --> LLM["Anthropic / DeepSeek"]
     CN -- "checkpoint" --> PG
     CN -- "RAG 检索" --> Qdrant
@@ -98,7 +99,7 @@ graph LR
 | 前端 | React 19、TypeScript、Tailwind CSS v4、Vite、shadcn/ui |
 | 控制面 | Go 1.25、Chi router、pgx、gRPC、Prometheus、OpenTelemetry |
 | 认知面 | Python 3.12、LangGraph、LangChain、gRPC |
-| 基础设施 | PostgreSQL 17、Qdrant、MinIO |
+| 基础设施 | PostgreSQL 16、Qdrant、MinIO、Redis 7 |
 | 容器化 | Docker Compose、多阶段 Dockerfile |
 
 ---
@@ -165,6 +166,7 @@ cd web && npm run dev
 │   │   ├── health/         # 并发健康检查聚合
 │   │   ├── kb/             # 直接 Qdrant 管理（list/delete）
 │   │   ├── metrics/        # Prometheus 指标
+│   │   ├── middleware/     # HTTP 中间件（限流、请求 ID）
 │   │   ├── observability/  # OpenTelemetry seam
 │   │   ├── poller/         # 后台连接器轮询
 │   │   ├── scheduler/      # Cron 定时 Run
@@ -230,8 +232,8 @@ REST 方案需要轮询或 WebSocket 升级才能传输流式工具事件。gRPC
 ### 4. 手写 ReAct（不用 `create_react_agent`）
 LangGraph 的 `create_react_agent` 封装了 think↔tools 循环，但隐藏了关键边缘情况：工具异常恢复、图级别的步数限制、工具返回异常输出时的处理。我用原始组件（StateGraph、ToolNode、自定义条件边）构建 ReAct 图，每个决策点都是显式的、可测试的。
 
-### 5. 三级并发准入控制
-信号量准入（提前拒绝 → HTTP 429）→ 进行中上限（防止单用户占满）→ 全局最大并发（保护数据库）。Context 取消从浏览器断连一路传播到认知面的 LLM 调用。
+### 5. 并发准入与背压控制
+加权信号量限制并行 run 数量（`MAX_CONCURRENT_RUNS`，默认 16）。超限请求立即返回 HTTP 429 并附带 `Retry-After: 1`，保护下游（PostgreSQL、LLM API）免于过载。基于 Redis 的 HTTP 限流中间件提供独立的 per-IP 频率控制（Redis 不可用时自动降级放行）。Context 取消从浏览器断连一路传播到认知面的 LLM 调用。
 
 ### 6. Prompt 注入三层防御
 对标 OWASP Top 10 for LLM：（1）输入检测——识别可疑模式后再进入 LLM，（2）提示词隔离——用户输入加分隔符 + 系统提示词加固，（3）输出过滤——扫描模型回复中是否泄露了系统指令。

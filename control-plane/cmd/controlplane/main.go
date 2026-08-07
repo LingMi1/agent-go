@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
 
 	"my-agent/control-plane/internal/api"
@@ -22,6 +23,7 @@ import (
 	"my-agent/control-plane/internal/health"
 	"my-agent/control-plane/internal/kb"
 	"my-agent/control-plane/internal/metrics"
+	"my-agent/control-plane/internal/middleware"
 	"my-agent/control-plane/internal/observability"
 	"my-agent/control-plane/internal/poller"
 	"my-agent/control-plane/internal/scheduler"
@@ -99,7 +101,21 @@ func main() {
 	// D2 Proactive 连接器（docs/16）：连接器/触发规则 repo。
 	connectorRepo := store.NewConnectorRepository(pool)
 	triggerRepo := store.NewTriggerRepository(pool)
-	router := api.NewRouter(dispatcher, runs, sessions, events, artStore, healthChecks, kbIface, client, statsRepo, artifactListRepo, schedRepo, userRepo, tokenRepo, connectorRepo, triggerRepo, cfg.RunTimeout, cfg.WebDir, log)
+
+	// Redis 限流中间件：仅当 REDIS_ADDR 已配置且 RATE_LIMIT_ENABLED 才启用。
+	// Redis 不可达只告警不致命——限流关闭、请求放行（fail-open）。
+	var rateLimiter *middleware.RateLimiter
+	if cfg.RedisAddr != "" && cfg.RateLimitEnabled {
+		rdb := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+		if _, err := rdb.Ping(ctx).Result(); err != nil {
+			log.Warn("redis ping failed, rate limiting disabled", "addr", cfg.RedisAddr, "err", err)
+		} else {
+			rateLimiter = middleware.NewRateLimiter(rdb, cfg.RateLimitRPM, cfg.RateLimitRunRPM, log)
+			log.Info("rate limiting enabled", "addr", cfg.RedisAddr, "global_rpm", cfg.RateLimitRPM, "run_rpm", cfg.RateLimitRunRPM)
+		}
+	}
+
+	router := api.NewRouter(dispatcher, runs, sessions, events, artStore, healthChecks, kbIface, client, statsRepo, artifactListRepo, schedRepo, userRepo, tokenRepo, connectorRepo, triggerRepo, rateLimiter, cfg.RunTimeout, cfg.WebDir, log)
 
 	// M11 定时触发：调度器 goroutine（优雅停机时 cancel；headless run 自建超时）。
 	schedCtx, schedCancel := context.WithCancel(context.Background())

@@ -49,7 +49,7 @@ func (f *fakeArtifacts) Put(_ context.Context, key string, body io.Reader, _ int
 func TestArtifactProxy_Ownership(t *testing.T) {
 	runs := &fakeRuns{runs: map[string]store.Run{"run1": {RunID: "run1", OwnerID: "u1"}}}
 	arts := &fakeArtifacts{objs: map[string][]byte{"run1/tc1/report.md": []byte("# 报告\n14")}}
-	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	do := func(path, user string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.Header.Set("X-User-Id", user)
@@ -76,7 +76,7 @@ func TestArtifactProxy_Ownership(t *testing.T) {
 func TestArtifactProxy_UploadsOwnership(t *testing.T) {
 	runs := &fakeRuns{runs: map[string]store.Run{}} // 无任何 run：uploads 分支不得依赖 GetRun
 	arts := &fakeArtifacts{objs: map[string][]byte{"uploads/u1/s1/ab12-a.txt": []byte("内容")}}
-	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
+	router := api.NewRouter(nil, runs, nil, nil, arts, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, time.Minute, "", discardLogger())
 	do := func(path, user string) *httptest.ResponseRecorder {
 		req := httptest.NewRequest(http.MethodGet, path, nil)
 		req.Header.Set("X-User-Id", user)

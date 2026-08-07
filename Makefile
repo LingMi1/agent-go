@@ -46,7 +46,7 @@ proto-py: ## 生成 Python stub（grpcio-tools）
 
 proto: proto-go proto-py ## 生成双端 stub
 
-infra-up: ## 起本地依赖（postgres/qdrant/redis/minio/nats）
+infra-up: ## 起本地依赖（postgres/qdrant/redis/minio）
 	cd deploy && docker compose up -d
 
 infra-down: ## 停本地依赖
