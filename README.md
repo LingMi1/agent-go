@@ -5,6 +5,8 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> [English](README.md) | [简体中文](README.zh-CN.md)
+
 **A production-grade multi-agent platform built from the ground up.** Not a thin wrapper around LangChain — every layer is hand-engineered: from the protobuf contract and gRPC transport, to the ReAct execution loop and append-only event ledger.
 
 ---
