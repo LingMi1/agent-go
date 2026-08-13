@@ -5,7 +5,7 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python)](https://python.org/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> [English](README.md) | [简体中文](README.zh-CN.md)
+> [English](README.md)
 
 **从零构建的生产级多智能体平台。** 不是对 LangChain 的薄封装——从 protobuf 协议定义到 gRPC 通信、从 ReAct 执行循环到 append-only 事件账本，每一层都是手写的。
 
