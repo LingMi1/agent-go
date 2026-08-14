@@ -225,24 +225,47 @@ All checks must pass before merging.
 
 ### 1. Event ledger before SSE push
 Every event is written to PostgreSQL with a monotonic sequence number *before* it hits the SSE wire. Reconnect after a disconnect, and the client replays from the last known sequence — the output is byte-identical to what would have been streamed live. Same principle as Kafka consumer offsets.
+**Trade-off:** every frame pays a database write before reaching the wire (write amplification), and the ledger grows unbounded — the price of replayability.
 
 ### 2. Why gRPC between planes (not REST)
 A REST approach would require polling or WebSocket upgrade for streaming tool execution events. With gRPC server-streaming, the cognition plane pushes typed `Event` messages to the control plane over a single long-lived RPC per run. Clean contract, zero polling, typed payloads via `oneof`.
+**Trade-off:** gRPC is harder to debug with curl/browser than REST, and any event-shape change touches the `.proto`. Accepted because the event contract deserves first-class typing.
 
 ### 3. Why Go for control, Python for cognition
 The control plane is I/O-bound (SSE fan-out, PostgreSQL writes, request routing) — Go's goroutine scheduler is purpose-built for this. The cognition plane is LLM-bound (prompt construction, graph traversal, embedding calls) — Python has the entire LLM ecosystem. The gRPC contract isolates the two worlds so each plane can be optimized independently.
+**Trade-off:** two processes to operate and a gRPC contract to maintain — a real cost, but the thing that keeps the external protocol and agent graphs decoupled.
 
 ### 4. Hand-written ReAct (not `create_react_agent`)
 LangGraph's `create_react_agent` abstracts away the think↔tools loop, but it hides critical edge cases: tool error recovery, step limit enforcement at the graph level, and what happens when a tool returns malformed output. I built the ReAct graph from primitives (`StateGraph`, `ToolNode`, custom conditional edges) so every decision point is explicit and testable.
+**Trade-off:** more code to own and test. Accepted because a thin wrapper is exactly what collapses under those edge cases.
 
 ### 5. Concurrency admission with backpressure
 A weighted semaphore caps in-flight runs (`MAX_CONCURRENT_RUNS`, default 16). Requests above the cap receive an immediate HTTP 429 with `Retry-After: 1`, protecting downstream (PostgreSQL, LLM APIs) from overcommit. A Redis-based rate limiter adds an independent layer of per-IP throttling at the HTTP middleware level (fail-open if Redis is unavailable). Context cancellation propagates from browser disconnect all the way through gRPC to the cognition plane's LLM call.
+**Trade-off:** bursts of legitimate traffic get rejected; the fail-open rate limiter means a Redis outage degrades to "no rate limit" rather than "no service".
 
 ### 6. Prompt injection defense (three layers)
 Modeled after OWASP Top 10 for LLM: (1) input detection — classify suspicious patterns before they reach the LLM, (2) prompt isolation — wrap user input with delimiters and system prompt hardening, (3) output filtering — scan the model's response for leaked system instructions before returning to the user.
+**Trade-off:** defense-in-depth adds latency and false-positive risk; deliberately conservative on the security side.
 
 ### 7. Owner isolation by design
 Every resource (run, session, artifact, knowledge base document) is scoped to the authenticated user ID. The API layer enforces this via middleware, not per-endpoint if-checks. New endpoints are automatically protected by the reverse-whitelist router pattern.
+**Trade-off:** the reverse-whitelist pattern means every new route must be explicitly allowed — friction, but a fail-closed default.
+
+### 8. Agent modes + role-based routing
+Three modes — ReAct (fast think↔tools loop), Plan-Execute (decomposition with parallel executor fan-out via LangGraph Send API), and Deep Think (extended reasoning budget). Different tasks have different latency/quality profiles; routing by mode (and by role internally) gives cost/quality control instead of one-size-fits-all.
+**Trade-off:** three execution paths to maintain and test; plan fan-out and checkpoint isolation are subtler than a single loop.
+
+### 9. Human-in-the-loop approvals
+Protected tools require approval before execution, implemented with LangGraph interrupt/resume. Some side effects (code execution, certain tools) must not run autonomously.
+**Trade-off:** interrupt/resume complicates checkpoint/replay semantics and demands tight scope control on what a resumed run may do.
+
+### 10. Agentic RAG
+Dense vector + sparse BM25 hybrid retrieval, multi-query fusion with reciprocal rank merge (RRF), cross-encoder reranking, and a reflection loop.
+**Trade-off:** a multi-stage pipeline is more to operate and tune than a single vector lookup, and each stage adds latency.
+
+## Deep-dive docs
+
+Per-module architecture documents live under [`eval/rag/corpus/`](eval/rag/corpus/), organized by area: architecture, control-plane, orchestration, hitl, persistence, retrieval, tools, deployment, observability, and troubleshooting. Start with [`dual_plane_system`](eval/rag/corpus/architecture/dual_plane_system.md).
 
 ---
 

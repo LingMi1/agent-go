@@ -224,25 +224,48 @@ CI pipeline（`.github/workflows/pr.yml`）每次 PR 自动执行：
 ## 关键设计决策
 
 ### 1. 事件先落库再推送
-所有事件带单调递增序列号写入 PostgreSQL，再通过 SSE 推送。断线重连后从已知序列号回放，输出与实时流字节一致。——和 Kafka consumer offset 同一种思路。
+所有事件带单调递增序列号先写入 PostgreSQL，再通过 SSE 推送。断线重连后从已知序列号回放，输出与实时流字节一致——和 Kafka consumer offset 同一种思路。
+**取舍**：每一帧在推给客户端前都要先写一次数据库（写放大），账本也会无限增长。这就是可回放要付的成本。
 
 ### 2. 为什么用 gRPC 连接两个面（而不是 REST）
-REST 方案需要轮询或 WebSocket 升级才能传输流式工具事件。gRPC server-streaming 让认知面通过单个长连接持续推送带类型的 Event 消息到控制面。清晰的契约，零轮询，`oneof` 保证类型安全。
+REST 方案要么轮询、要么升级 WebSocket 才能传输流式工具事件。gRPC server-streaming 让认知面通过一条长连接持续推送带类型的 Event 消息。契约清晰、零轮询、`oneof` 保证类型安全。
+**取舍**：gRPC 不如 REST 方便用 curl 或浏览器直接调试，事件结构一变就得改 `.proto`。能接受，是因为事件契约足够核心，值得用强类型约束。
 
 ### 3. 为什么 Go 做控制面、Python 做认知面
-控制面是 I/O 密集型（SSE 扇出、PostgreSQL 写入、请求路由）——Go 的 goroutine 调度器就是为这个设计的。认知面是 LLM 密集型（prompt 构造、图遍历、embedding 调用）——整个 LLM 生态都在 Python。gRPC 协议隔离两个世界，各自可以独立优化。
+控制面是 I/O 密集型（SSE 扇出、PostgreSQL 写入、请求路由），Go 的 goroutine 调度器就是为这个设计的；认知面是 LLM 密集型（prompt 构造、图遍历、embedding 调用），整个 LLM 生态都在 Python。gRPC 契约把两个世界隔开，各自独立优化。
+**取舍**：要同时运维两个进程、维护 gRPC 契约。这个边界是实打实的成本，但正是它让外部协议和智能体图解耦。
 
 ### 4. 手写 ReAct（不用 `create_react_agent`）
-LangGraph 的 `create_react_agent` 封装了 think↔tools 循环，但隐藏了关键边缘情况：工具异常恢复、图级别的步数限制、工具返回异常输出时的处理。我用原始组件（StateGraph、ToolNode、自定义条件边）构建 ReAct 图，每个决策点都是显式的、可测试的。
+LangGraph 的 `create_react_agent` 封装了 think↔tools 循环，却把关键边缘情况藏了起来：工具异常恢复、图层面的步数限制、工具返回畸形输出怎么办。我用原始组件（`StateGraph`、`ToolNode`、自定义条件边）搭 ReAct 图，每个决策点都显式、可测试。
+**取舍**：要自己写、自己测更多代码。能接受，是因为薄封装恰恰会在这些边缘情况上崩。
 
 ### 5. 并发准入与背压控制
-加权信号量限制并行 run 数量（`MAX_CONCURRENT_RUNS`，默认 16）。超限请求立即返回 HTTP 429 并附带 `Retry-After: 1`，保护下游（PostgreSQL、LLM API）免于过载。基于 Redis 的 HTTP 限流中间件提供独立的 per-IP 频率控制（Redis 不可用时自动降级放行）。Context 取消从浏览器断连一路传播到认知面的 LLM 调用。
+加权信号量限制并行 run 数（`MAX_CONCURRENT_RUNS`，默认 16），超限立即返回 HTTP 429 + `Retry-After: 1`，保护下游（PostgreSQL、LLM API）不被压垮。基于 Redis 的 HTTP 限流中间件再提供一层按 IP 的节流（Redis 挂了就 fail-open）。Context 取消从浏览器断连一路传到 gRPC，再到认知面的 LLM 调用。
+**取舍**：流量突发时会有合法请求被拒；fail-open 意味着 Redis 故障时退化成「不限流」而非「不服务」。
 
 ### 6. Prompt 注入三层防御
-对标 OWASP Top 10 for LLM：（1）输入检测——识别可疑模式后再进入 LLM，（2）提示词隔离——用户输入加分隔符 + 系统提示词加固，（3）输出过滤——扫描模型回复中是否泄露了系统指令。
+对标 OWASP Top 10 for LLM：（1）输入检测——可疑模式先拦在 LLM 之外，（2）提示词隔离——用户输入加分隔符 + 系统提示词加固，（3）输出过滤——检查模型回复有没有泄露系统指令。
+**取舍**：纵深防御会加延迟、有误报风险；安全侧刻意做得保守。
 
 ### 7. Owner 隔离设计
-所有资源（run、session、artifact、知识库文档）按认证用户 ID 隔离。API 层通过中间件统一强制，不是每个端点写 if 判断。新端点通过反向白名单路由模式自动受保护。
+所有资源（run、session、artifact、知识库文档）按认证用户 ID 隔离，API 层用中间件统一强制，而不是每个端点各写一个 if。新端点靠反向白名单路由自动受保护。
+**取舍**：反向白名单意味着每条新路由都要显式放行，有点麻烦，但默认就是 fail-closed。
+
+### 8. Agent 模式 + 按角色路由
+三种模式：ReAct（快速的 think↔tools 循环）、Plan-Execute（拆解任务，通过 LangGraph Send API 并行扇出多个执行器）、Deep Think（加长推理预算）。不同任务对延迟和质量的诉求不同，按模式（内部再按角色）路由，就能在成本和效果之间做选择，而不是一刀切。
+**取舍**：三条执行路径都要维护和测试；plan 扇出和 checkpoint 隔离的正确性比单循环更容易踩坑。
+
+### 9. 人工审批（HITL）
+受保护的工具执行前要审批，用 LangGraph 的 interrupt/resume 实现。有些副作用（跑代码、部分工具）不能让它自主执行。
+**取舍**：interrupt/resume 让 checkpoint 和回放语义更复杂，恢复后的 run 能做什么也得严格划定边界。
+
+### 10. Agentic RAG
+稠密向量 + 稀疏 BM25 混合检索，多查询融合（RRF）、cross-encoder 重排、再加一轮反思。
+**取舍**：多级流水线比一次向量查询更难运维、更难调参，每一级还都加延迟。
+
+## 深入文档
+
+各模块的深入架构文档都在 [`eval/rag/corpus/`](eval/rag/corpus/) 下，按领域分目录：架构、控制面、编排、HITL、持久化、检索、工具、部署、可观测性、排障。可以从 [`dual_plane_system`](eval/rag/corpus/architecture/dual_plane_system.md) 入手。
 
 ---
 
