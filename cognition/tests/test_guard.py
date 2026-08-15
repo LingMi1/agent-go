@@ -2,8 +2,6 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from cognition.graphs.guard import (
     check_input_injection,
     check_output_safety,
