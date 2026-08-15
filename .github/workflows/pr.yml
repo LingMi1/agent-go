@@ -27,12 +27,13 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # ── Go ──
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           go-version: "1.25"
+          cache-dependency-path: control-plane/go.sum
 
       # genproto 由 proto/ 生成且被 gitignore，CI 内先再生成（插件版本与 Dockerfile 对齐）
       - name: Install buf and Go protobuf plugins
@@ -57,7 +58,7 @@ jobs:
         run: go test -race -count=1 -p 1 ./...
 
       # ── Python ──
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -87,7 +88,7 @@ jobs:
         run: uv run --extra dev pytest -q
 
       # ── TypeScript ──
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: npm
@@ -107,7 +108,7 @@ jobs:
 
       # ── Docker build (no push) ──
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build control-plane image
         uses: docker/build-push-action@v6
