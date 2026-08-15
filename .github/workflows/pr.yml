@@ -79,11 +79,12 @@ jobs:
 
       - name: Python lint (ruff)
         working-directory: cognition
-        run: uv run ruff check .
+        # ruff/pytest 在 optional dev extras，uv run 默认不装，须显式 --extra dev
+        run: uv run --extra dev ruff check .
 
       - name: Python test
         working-directory: cognition
-        run: uv run pytest -q
+        run: uv run --extra dev pytest -q
 
       # ── TypeScript ──
       - uses: actions/setup-node@v5
