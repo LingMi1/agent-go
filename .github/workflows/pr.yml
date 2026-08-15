@@ -53,7 +53,8 @@ jobs:
         working-directory: control-plane
         env:
           TEST_PG_DSN: postgres://agent:agent_pwd@localhost:5432/my_agent_test
-        run: go test -race -count=1 ./...
+        # -p 1 串行执行包：store/api 等包共享同一 PG 测试库并各自 TRUNCATE，并行会互相清空/读到对方数据
+        run: go test -race -count=1 -p 1 ./...
 
       # ── Python ──
       - uses: actions/setup-python@v6

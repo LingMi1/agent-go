@@ -20,7 +20,7 @@ web: ## 启动前端（Vite :5173，代理到 :8080）
 check: ## 跑全部测试（Go + Python + 前端纯逻辑）
 	# TEST_PG_DSN 必须指向独立测试库 my_agent_test——集成测试会 TRUNCATE runs/events，
 	# 指向开发库会清空真实对话历史（踩过的坑）。首次：make test-db
-	cd control-plane && TEST_PG_DSN=$(TEST_PG_DSN) go test -race -count=1 ./...
+	cd control-plane && TEST_PG_DSN=$(TEST_PG_DSN) go test -race -count=1 -p 1 ./...
 	cd cognition && uv run pytest -q
 	cd web && npm run test
 
