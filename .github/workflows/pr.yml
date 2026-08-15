@@ -34,6 +34,17 @@ jobs:
         with:
           go-version: "1.25"
 
+      # genproto 由 proto/ 生成且被 gitignore，CI 内先再生成（插件版本与 Dockerfile 对齐）
+      - name: Install buf and Go protobuf plugins
+        run: |
+          go install github.com/bufbuild/buf/cmd/buf@v1.47.2
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Generate Go proto stubs
+        run: buf generate
+
       - name: Go lint (go vet)
         working-directory: control-plane
         run: go vet ./...
@@ -51,6 +62,19 @@ jobs:
 
       - name: Install uv
         run: pip install uv
+
+      # cognition 侧 stub 同样由 proto/ 生成（被 gitignore），pytest 前先再生成
+      - name: Generate Python proto stubs
+        working-directory: cognition
+        run: |
+          mkdir -p cognition/genproto
+          uv run python -m grpc_tools.protoc \
+            -I ../proto \
+            --python_out=cognition/genproto \
+            --grpc_python_out=cognition/genproto \
+            --pyi_out=cognition/genproto \
+            ../proto/agent/v1/agent.proto
+          find cognition/genproto -type d -exec touch {}/__init__.py \;
 
       - name: Python lint (ruff)
         working-directory: cognition
