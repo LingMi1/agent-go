@@ -145,6 +145,10 @@ func (h *handlers) issueToken(r *http.Request, userID string) (string, time.Time
 // register：POST /auth/register {username,password} → bcrypt 存 users(role=user) → 发 token。
 // 用户名已存在 409。user_id == username（docs/17：历史 owner_id 零迁移归属）。
 func (h *handlers) register(w http.ResponseWriter, r *http.Request) {
+	if !h.registrationEnabled {
+		writeProblem(w, http.StatusForbidden, "registration_disabled", "自助注册已关闭")
+		return
+	}
 	if h.users == nil || h.authTokens == nil {
 		writeProblem(w, http.StatusServiceUnavailable, "no_auth", "鉴权未启用")
 		return

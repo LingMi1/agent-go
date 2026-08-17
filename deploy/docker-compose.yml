@@ -19,7 +19,7 @@ services:
     # 不挂 env_file：控制面不需要、也不应拿到 LLM API 密钥。
     # 集群内端点显式钉死（.env 里的 localhost DSN 是给 host 进程用的，进容器必错）。
     environment:
-      PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent_pwd}@postgres:5432/${POSTGRES_DB:-my_agent}
+      PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-my_agent}
       COGNITION_ADDR: cognition:50051
       MINIO_ENDPOINT: minio:9000
       QDRANT_URL: http://qdrant:6333 # UX-1 知识库管理（Files 面板读/删直连）
@@ -33,6 +33,8 @@ services:
       RATE_LIMIT_ENABLED: "true"
       BOOTSTRAP_ADMIN_USER: ${BOOTSTRAP_ADMIN_USER:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD must be set}
+      AUTH_REQUIRED: "true"        # 强制 token 鉴权：关闭 X-User-Id 头回退，杜绝跨租户越权
+      REGISTRATION_ENABLED: "false" # 关闭开放自助注册：公网下防任意人注册消耗 LLM 额度
     # NOTE: 以下 ports 映射仅用于本地开发。生产环境应移除 ports 映射或限制为 127.0.0.1。
     ports:
       - "${CONTROL_PLANE_PORT:-8080}:8080"
@@ -60,7 +62,7 @@ services:
     # environment 显式重钉全部集群内端点与容器内路径（覆盖 env_file 的 host 值）。
     env_file: .env
     environment:
-      COGNITION_PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:-agent_pwd}@postgres:5432/${POSTGRES_DB:-my_agent}
+      COGNITION_PG_DSN: postgres://${POSTGRES_USER:-agent}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/${POSTGRES_DB:-my_agent}
       COGNITION_QDRANT_URL: http://qdrant:6333
       MINIO_ENDPOINT: minio:9000
       COGNITION_MINIO_UPLOAD_ENABLED: "true"
@@ -96,10 +98,10 @@ services:
     container_name: my-agent-postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-agent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agent_pwd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: ${POSTGRES_DB:-my_agent}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
     healthcheck:
@@ -113,8 +115,8 @@ services:
     image: qdrant/qdrant:v1.12.4
     container_name: my-agent-qdrant
     ports:
-      - "${QDRANT_HTTP_PORT:-6333}:6333"
-      - "${QDRANT_GRPC_PORT:-6334}:6334"
+      - "127.0.0.1:${QDRANT_HTTP_PORT:-6333}:6333"
+      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
     volumes:
       - ./volumes/qdrant:/qdrant/storage
     healthcheck:
@@ -129,7 +131,7 @@ services:
     container_name: my-agent-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - ./volumes/redis:/data
     healthcheck:
@@ -145,10 +147,10 @@ services:
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
     ports:
-      - "${MINIO_API_PORT:-9000}:9000"
-      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${MINIO_API_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - ./volumes/minio:/data
     healthcheck:
@@ -183,9 +185,9 @@ services:
       - ./observability/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
       - ./volumes/tempo:/var/tempo
     ports:
-      - "${TEMPO_HTTP_PORT:-3200}:3200" # 查询 API（global-grafana 经 host.docker.internal:3200 加 Tempo datasource）
-      - "${TEMPO_OTLP_GRPC_PORT:-4317}:4317" # OTLP/gRPC（host 进程 make control/cognition 亦可导出到此）
-      - "${TEMPO_OTLP_HTTP_PORT:-4318}:4318" # OTLP/HTTP（备用）
+      - "127.0.0.1:${TEMPO_HTTP_PORT:-3200}:3200" # 查询 API（global-grafana 经 host.docker.internal:3200 加 Tempo datasource）
+      - "127.0.0.1:${TEMPO_OTLP_GRPC_PORT:-4317}:4317" # OTLP/gRPC（host 进程 make control/cognition 亦可导出到此）
+      - "127.0.0.1:${TEMPO_OTLP_HTTP_PORT:-4318}:4318" # OTLP/HTTP（备用）
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3200/ready | grep -q ready || exit 1"]
       interval: 10s

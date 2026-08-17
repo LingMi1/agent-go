@@ -43,10 +43,11 @@ type Config struct {
 	PollerEnabled   bool   // POLLER_ENABLED 为真（1/true/yes/on，大小写不敏感）：起独立轮询 goroutine（且须 SecretMasterKey 非空）
 
 	// Redis（HTTP 限流：固定窗口计数器）。Redis 不可用时 fail-open（请求放行）。
-	RedisAddr       string // REDIS_ADDR：Redis 连接地址（host:port）。空 → 不接 Redis，限流关闭
-	RateLimitEnabled bool  // RATE_LIMIT_ENABLED（1/true/yes/on）：启用限流中间件
-	RateLimitRPM    int    // RATE_LIMIT_RPM：全部 API 的全局每分钟上限（默认 60）
-	RateLimitRunRPM int    // RATE_LIMIT_RUN_RPM：POST /runs 的每分钟上限（默认 10，比全局更严）
+	RedisAddr          string // REDIS_ADDR：Redis 连接地址（host:port）。空 → 不接 Redis，限流关闭
+	RateLimitEnabled   bool   // RATE_LIMIT_ENABLED（1/true/yes/on）：启用限流中间件
+	RateLimitRPM       int    // RATE_LIMIT_RPM：全部 API 的全局每分钟上限（默认 60）
+	RateLimitRunRPM    int    // RATE_LIMIT_RUN_RPM：POST /runs 的每分钟上限（默认 10，比全局更严）
+	TrustXForwardedFor bool   // TRUST_X_FORWARDED_FOR：仅在可信反代之后才设 true（默认 false，防伪造 XFF 绕过限流）
 
 	// PostgreSQL 连接池
 	PGPoolMaxConns int32 // PG_POOL_MAX_CONNS：pgxpool 最大连接数（默认 16，对齐 MAX_CONCURRENT_RUNS）
@@ -68,7 +69,7 @@ func Load() Config {
 		MinioEndpoint:     env("MINIO_ENDPOINT", "localhost:9000"),
 		MinioAccessKey:    env("MINIO_ACCESS_KEY", "minioadmin"), // dev default
 		MinioSecretKey:    env("MINIO_SECRET_KEY", "minioadmin"), // dev default
-		MinioBucket:       env("MINIO_BUCKET", "artifacts"), // 须与认知面 COGNITION_MINIO_BUCKET 一致
+		MinioBucket:       env("MINIO_BUCKET", "artifacts"),      // 须与认知面 COGNITION_MINIO_BUCKET 一致
 		MinioUseSSL:       env("MINIO_USE_SSL", "false") == "true",
 		// 与认知面共用一套 Qdrant：默认接受 COGNITION_QDRANT_URL（deploy/.env 单一事实源），
 		// 也可用 QDRANT_URL 单独覆盖。
@@ -87,11 +88,12 @@ func Load() Config {
 		SecretMasterKey: env("SECRET_MASTER_KEY", ""),
 		PollerEnabled:   EnvBool("POLLER_ENABLED"),
 		// Redis 限流：默认关（未配置 REDIS_ADDR 时关闭）。Redis 不可用则 fail-open。
-		RedisAddr:       env("REDIS_ADDR", ""),
-		RateLimitEnabled: EnvBool("RATE_LIMIT_ENABLED"),
-		RateLimitRPM:    envInt("RATE_LIMIT_RPM", 60),
-		RateLimitRunRPM: envInt("RATE_LIMIT_RUN_RPM", 10),
-		PGPoolMaxConns:  int32(envInt("PG_POOL_MAX_CONNS", 16)),
+		RedisAddr:          env("REDIS_ADDR", ""),
+		RateLimitEnabled:   EnvBool("RATE_LIMIT_ENABLED"),
+		RateLimitRPM:       envInt("RATE_LIMIT_RPM", 60),
+		RateLimitRunRPM:    envInt("RATE_LIMIT_RUN_RPM", 10),
+		TrustXForwardedFor: EnvBool("TRUST_X_FORWARDED_FOR"),
+		PGPoolMaxConns:     int32(envInt("PG_POOL_MAX_CONNS", 16)),
 	}
 }
 
@@ -125,5 +127,19 @@ func EnvBool(key string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// EnvBoolDefault 同 EnvBool，但未设置（空串）时返回 def。
+// 用于「默认开启、需显式关闭」的开关：REGISTRATION_ENABLED 默认 true 以保持历史行为，
+// 生产 compose 显式设 false 关闭自助注册（防公网任意人注册消耗 LLM 额度）。
+func EnvBoolDefault(key string, def bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return def
 	}
 }

@@ -17,10 +17,11 @@ import (
 // RateLimiter 对 HTTP 请求执行固定窗口（每分钟）速率限制。
 // Redis 不可用时 fail-open：请求允许通过并记录告警。
 type RateLimiter struct {
-	rdb       *redis.Client
-	globalRPM int // 全部 API 的默认每分钟请求上限
-	runRPM    int // POST /runs 的每分钟请求上限（比全局更严）
-	log       *slog.Logger
+	rdb        *redis.Client
+	globalRPM  int // 全部 API 的默认每分钟请求上限
+	runRPM     int // POST /runs 的每分钟请求上限（比全局更严）
+	trustProxy bool
+	log        *slog.Logger
 }
 
 // NewRateLimiter 创建限流器。globalRPM/runRPM 为 0 时使用默认值 60/10。
@@ -32,6 +33,14 @@ func NewRateLimiter(rdb *redis.Client, globalRPM, runRPM int, log *slog.Logger) 
 		runRPM = 10
 	}
 	return &RateLimiter{rdb: rdb, globalRPM: globalRPM, runRPM: runRPM, log: log}
+}
+
+// SetTrustProxy 控制 clientIP 是否信任 X-Forwarded-For 头。
+// 仅在服务位于可信反向代理之后时才应开启；直连暴露时必须保持 false（默认），
+// 否则客户端可伪造 XFF 无限刷新限流桶、绕过全局限流甚至对 /auth/login 撞库。
+func (rl *RateLimiter) SetTrustProxy(v bool) *RateLimiter {
+	rl.trustProxy = v
+	return rl
 }
 
 // Middleware 返回 chi 兼容的限流中间件。固定窗口 = 当前 UTC 分钟。
@@ -50,7 +59,7 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 		}
 
 		window := time.Now().UTC().Unix() / 60
-		key := rateLimitKey(r, window)
+		key := rateLimitKey(r, window, rl.trustProxy)
 		ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
 		defer cancel()
 
@@ -81,20 +90,22 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 }
 
 // rateLimitKey 构造 Redis key：ratelimit:<ip>:<utc_minute>。
-// 优先读 X-Forwarded-For（代理/负载均衡）；无则用 RemoteAddr。
-func rateLimitKey(r *http.Request, window int64) string {
-	ip := clientIP(r)
+// trustProxy 为 true 时优先读 X-Forwarded-For（可信反代之后）；否则只用 RemoteAddr。
+func rateLimitKey(r *http.Request, window int64, trustProxy bool) string {
+	ip := clientIP(r, trustProxy)
 	// window 是当前 UTC 分钟序号（固定窗口边界），由调用方传入以避免计时偏差。
 	return fmt.Sprintf("ratelimit:%s:%d", ip, window)
 }
 
-// clientIP 提取请求的客户端 IP。
-func clientIP(r *http.Request) string {
-	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
-		if i := strings.IndexByte(fwd, ','); i > 0 {
-			fwd = strings.TrimSpace(fwd[:i])
+// clientIP 提取请求的客户端 IP。trustProxy 为 true 时才信任 X-Forwarded-For 头。
+func clientIP(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+			if i := strings.IndexByte(fwd, ','); i > 0 {
+				fwd = strings.TrimSpace(fwd[:i])
+			}
+			return fwd
 		}
-		return fwd
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {

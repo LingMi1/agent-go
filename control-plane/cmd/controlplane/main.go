@@ -112,8 +112,8 @@ func main() {
 			if _, err := rdb.Ping(ctx).Result(); err != nil {
 				log.Warn("redis ping failed, rate limiting disabled", "addr", cfg.RedisAddr, "err", err)
 			} else {
-				rateLimiter = middleware.NewRateLimiter(rdb, cfg.RateLimitRPM, cfg.RateLimitRunRPM, log)
-				log.Info("rate limiting enabled", "addr", cfg.RedisAddr, "global_rpm", cfg.RateLimitRPM, "run_rpm", cfg.RateLimitRunRPM)
+				rateLimiter = middleware.NewRateLimiter(rdb, cfg.RateLimitRPM, cfg.RateLimitRunRPM, log).SetTrustProxy(cfg.TrustXForwardedFor)
+				log.Info("rate limiting enabled", "addr", cfg.RedisAddr, "global_rpm", cfg.RateLimitRPM, "run_rpm", cfg.RateLimitRunRPM, "trust_proxy", cfg.TrustXForwardedFor)
 			}
 		}
 	}

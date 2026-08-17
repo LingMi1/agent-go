@@ -6,6 +6,8 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -141,10 +143,19 @@ func NewSessionTokenRepository(pool *pgxpool.Pool) SessionTokenRepository {
 	return &pgSessionTokenRepo{pool: pool}
 }
 
+// hashToken 对会话 token 做 SHA-256 摘要后才落库/比对。
+// token 是 crypto/rand 32 字节（256 bit）高熵值，无需加盐/bcrypt——DB 泄漏/备份泄漏时
+// 攻击者拿到的只是摘要，无法反推原始 token 来劫持会话。哈希在 store 层做，对调用方透明：
+// api 层仍传原始 token，返回给客户端的也始终是原始 token。
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
+}
+
 func (r *pgSessionTokenRepo) CreateToken(ctx context.Context, token, userID string, expiresAt time.Time) error {
 	_, err := r.pool.Exec(ctx, `
 		INSERT INTO auth_sessions (token, user_id, expires_at) VALUES ($1, $2, $3)`,
-		token, userID, expiresAt)
+		hashToken(token), userID, expiresAt)
 	if err != nil {
 		return fmt.Errorf("store: create token: %w", err)
 	}
@@ -157,7 +168,7 @@ func (r *pgSessionTokenRepo) LookupToken(ctx context.Context, token string) (str
 		SELECT s.user_id, u.role
 		  FROM auth_sessions s
 		  JOIN users u ON u.user_id = s.user_id
-		 WHERE s.token = $1 AND s.expires_at > now()`, token).
+		 WHERE s.token = $1 AND s.expires_at > now()`, hashToken(token)).
 		Scan(&userID, &role)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return "", "", ErrTokenNotFound
@@ -169,7 +180,7 @@ func (r *pgSessionTokenRepo) LookupToken(ctx context.Context, token string) (str
 }
 
 func (r *pgSessionTokenRepo) DeleteToken(ctx context.Context, token string) error {
-	_, err := r.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE token = $1`, token)
+	_, err := r.pool.Exec(ctx, `DELETE FROM auth_sessions WHERE token = $1`, hashToken(token))
 	if err != nil {
 		return fmt.Errorf("store: delete token: %w", err)
 	}

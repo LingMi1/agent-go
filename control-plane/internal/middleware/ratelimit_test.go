@@ -22,7 +22,7 @@ func TestClientIP_XForwardedFor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest("GET", "/", nil)
 			r.Header.Set("X-Forwarded-For", tt.header)
-			got := clientIP(r)
+			got := clientIP(r, true)
 			if got != tt.expected {
 				t.Errorf("clientIP() = %q, want %q", got, tt.expected)
 			}
@@ -44,7 +44,7 @@ func TestClientIP_RemoteAddr(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest("GET", "/", nil)
 			r.RemoteAddr = tt.remoteAddr
-			got := clientIP(r)
+			got := clientIP(r, false)
 			if got != tt.expected {
 				t.Errorf("clientIP() = %q, want %q", got, tt.expected)
 			}
@@ -52,10 +52,21 @@ func TestClientIP_RemoteAddr(t *testing.T) {
 	}
 }
 
+func TestClientIP_TrustProxyDisabled(t *testing.T) {
+	// 默认不信任 XFF：即使客户端伪造了 X-Forwarded-For，也必须取 RemoteAddr，
+	// 否则攻击者可伪造 IP 无限刷新限流桶绕过全局限流。
+	r := httptest.NewRequest("GET", "/", nil)
+	r.RemoteAddr = "203.0.113.7:4321"
+	r.Header.Set("X-Forwarded-For", "198.51.100.9")
+	if got := clientIP(r, false); got != "203.0.113.7" {
+		t.Errorf("clientIP(trustProxy=false) = %q, want RemoteAddr %q", got, "203.0.113.7")
+	}
+}
+
 func TestRateLimitKey(t *testing.T) {
 	r := httptest.NewRequest("GET", "/", nil)
 	r.Header.Set("X-Forwarded-For", "10.0.0.1")
-	key := rateLimitKey(r, 123456)
+	key := rateLimitKey(r, 123456, true)
 	expected := "ratelimit:10.0.0.1:123456"
 	if key != expected {
 		t.Errorf("rateLimitKey() = %q, want %q", key, expected)

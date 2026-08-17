@@ -31,28 +31,29 @@ import (
 )
 
 type handlers struct {
-	dispatcher     *dispatch.Dispatcher
-	runs           store.RunRepository
-	sessions       store.SessionRepository
-	events         store.EventRepository
-	artifacts      artifact.Store
-	healthChecks   map[string]health.Check
-	kb             kb.Store
-	cog            cognition.Client
-	stats          store.StatsRepository
-	artifactList   store.ArtifactListRepository
-	schedules      store.SchedulesRepository
-	users          store.UserRepository         // D3：账号（注册/登录/admin 列表）；nil → /auth·/admin 降级
-	authTokens     store.SessionTokenRepository // D3：server 端 token；nil → resolveIdentity 直接回退 X-User-Id
-	authRequired   bool                         // D3：AUTH_REQUIRED；true 时受保护 API 无有效 token → 401
-	connectors     store.ConnectorRepository    // D2 连接器；nil 或 secretKey 空 → /connectors·/triggers 降级 503
-	triggers       store.TriggerRepository      // D2 触发规则
-	secretKey      []byte                       // D2：SECRET_MASTER_KEY 解码后的 AES-GCM 主密钥；空 → 连接器功能降级
-	runTimeout     time.Duration
-	maxUploadBytes int64
-	rateLimiter    *rmw.RateLimiter // HTTP 限流中间件；nil → 不限流
-	log            *slog.Logger
-	mux            *chi.Mux // 本路由自身引用；resolveIdentity 反向白名单用它判定「是否已注册的 API 路由」
+	dispatcher          *dispatch.Dispatcher
+	runs                store.RunRepository
+	sessions            store.SessionRepository
+	events              store.EventRepository
+	artifacts           artifact.Store
+	healthChecks        map[string]health.Check
+	kb                  kb.Store
+	cog                 cognition.Client
+	stats               store.StatsRepository
+	artifactList        store.ArtifactListRepository
+	schedules           store.SchedulesRepository
+	users               store.UserRepository         // D3：账号（注册/登录/admin 列表）；nil → /auth·/admin 降级
+	authTokens          store.SessionTokenRepository // D3：server 端 token；nil → resolveIdentity 直接回退 X-User-Id
+	authRequired        bool                         // D3：AUTH_REQUIRED；true 时受保护 API 无有效 token → 401
+	registrationEnabled bool                         // D3：REGISTRATION_ENABLED；false 时关闭自助注册（公网防滥用）
+	connectors          store.ConnectorRepository    // D2 连接器；nil 或 secretKey 空 → /connectors·/triggers 降级 503
+	triggers            store.TriggerRepository      // D2 触发规则
+	secretKey           []byte                       // D2：SECRET_MASTER_KEY 解码后的 AES-GCM 主密钥；空 → 连接器功能降级
+	runTimeout          time.Duration
+	maxUploadBytes      int64
+	rateLimiter         *rmw.RateLimiter // HTTP 限流中间件；nil → 不限流
+	log                 *slog.Logger
+	mux                 *chi.Mux // 本路由自身引用；resolveIdentity 反向白名单用它判定「是否已注册的 API 路由」
 }
 
 // NewRouter 装配路由与中间件。artifacts 可为 nil（仅 /artifacts 不可用）；
@@ -68,7 +69,8 @@ func NewRouter(d *dispatch.Dispatcher, runs store.RunRepository, sessions store.
 		dispatcher: d, runs: runs, sessions: sessions, events: events, artifacts: artifacts,
 		healthChecks: healthChecks, kb: kbStore, cog: cog, stats: stats, artifactList: artifactList, schedules: schedules,
 		users: users, authTokens: authTokens, authRequired: config.EnvBool("AUTH_REQUIRED"),
-		connectors: connectors, triggers: triggers, rateLimiter: rateLimiter, runTimeout: runTimeout,
+		registrationEnabled: config.EnvBoolDefault("REGISTRATION_ENABLED", true),
+		connectors:          connectors, triggers: triggers, rateLimiter: rateLimiter, runTimeout: runTimeout,
 		maxUploadBytes: DefaultMaxUploadBytes, log: log,
 	}
 	if key, err := secret.DecodeMasterKey(os.Getenv("SECRET_MASTER_KEY")); err == nil {
