@@ -198,7 +198,7 @@ cd web && npm run dev
 
 ## Testing
 
-**490+ tests across Go, Python, and TypeScript, all passing in CI.**
+**550+ tests across Go, Python, and TypeScript, all passing in CI.**
 
 ```bash
 # Go — all tests run with -race detector

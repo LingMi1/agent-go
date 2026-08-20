@@ -198,7 +198,7 @@ cd web && npm run dev
 
 ## 测试
 
-**Go + Python + TypeScript 共 490+ 测试用例，CI 全部通过。**
+**Go + Python + TypeScript 共 550+ 测试用例，CI 全部通过。**
 
 ```bash
 # Go — 所有测试带 race detector
