@@ -39,6 +39,9 @@ venv/
 /deploy/data/
 /deploy/volumes/
 
+# ===== Eval 运行产物（重新跑 eval 即可复现）=====
+/eval/**/results/
+
 # ===== 生成代码（由 `make proto` 从 proto/ 单一来源重新生成）=====
 /control-plane/internal/genproto/
 /cognition/cognition/genproto/
