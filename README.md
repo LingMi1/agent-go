@@ -118,6 +118,9 @@ graph LR
 ```bash
 cd deploy
 cp .env.example .env
+# Fill in the required secrets (compose refuses to start while any is empty):
+#   POSTGRES_PASSWORD / MINIO_ROOT_PASSWORD / BOOTSTRAP_ADMIN_PASSWORD / SECRET_MASTER_KEY
+# Generate e.g.: openssl rand -base64 32   # standard base64, 32 bytes — SECRET_MASTER_KEY must decode to exactly 32 bytes
 docker compose --profile app up -d --build
 ```
 

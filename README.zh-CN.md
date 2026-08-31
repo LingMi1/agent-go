@@ -118,6 +118,9 @@ graph LR
 ```bash
 cd deploy
 cp .env.example .env
+# 填写必填密钥（任一为空 compose 会拒绝启动）：
+#   POSTGRES_PASSWORD / MINIO_ROOT_PASSWORD / BOOTSTRAP_ADMIN_PASSWORD / SECRET_MASTER_KEY
+# 生成示例：openssl rand -base64 32   # 标准 base64、32 字节——SECRET_MASTER_KEY 必须解码后恰好 32 字节
 docker compose --profile app up -d --build
 ```
 

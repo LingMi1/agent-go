@@ -33,6 +33,9 @@ services:
       RATE_LIMIT_ENABLED: "true"
       BOOTSTRAP_ADMIN_USER: ${BOOTSTRAP_ADMIN_USER:-admin}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD must be set}
+      # D2 连接器/触发规则：凭据 AES-GCM 加密主密钥（internal/secret）。缺它 connectors/
+      # triggers 全家 503 fail-closed——必须显式注入（.env 有值不等于进容器，见 environment 清单语义）。
+      SECRET_MASTER_KEY: ${SECRET_MASTER_KEY:?SECRET_MASTER_KEY must be set}
       AUTH_REQUIRED: "true"        # 强制 token 鉴权：关闭 X-User-Id 头回退，杜绝跨租户越权
       REGISTRATION_ENABLED: "false" # 关闭开放自助注册：公网下防任意人注册消耗 LLM 额度
     # NOTE: 以下 ports 映射仅用于本地开发。生产环境应移除 ports 映射或限制为 127.0.0.1。
