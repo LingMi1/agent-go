@@ -40,7 +40,7 @@ graph LR
 ```
 
 - **Go Control Plane** — HTTP/SSE streaming, authentication (bcrypt + Bearer tokens), run dispatch with concurrency control, append-only event ledger, artifact proxy, gRPC circuit breaker
-- **Python Cognition Plane** — LangGraph-based agent graphs (ReAct, Plan-Execute, Deep Research), tool execution, Agentic RAG pipeline, MCP integration, skill system
+- **Python Cognition Plane** — LangGraph-based agent graphs (hand-written ReAct and Plan-Execute StateGraphs; Deep Research is a research mode of the Plan-Execute graph), tool execution, Agentic RAG pipeline, MCP integration, skill system
 - **The bridge** — gRPC with server-streaming. The control plane opens a single RPC per run; cognition streams typed `Event` messages back. A `gobreaker` circuit breaker prevents cascading failures.
 
 ---
@@ -49,8 +49,8 @@ graph LR
 
 ### Agent Modes
 - **ReAct (Quick)** — think ↔ tools loop with custom step limiting and tool error isolation. Intentionally hand-written instead of using `create_react_agent` to control every edge case.
-- **Plan-Execute (Deep Research)** — multi-step task decomposition with parallel executor branches via LangGraph Send API fan-out. Each branch runs independently with its own checkpoint.
-- **Deep Think** — extended reasoning with configurable step budgets.
+- **Plan-Execute** — multi-step task decomposition with parallel executor branches via LangGraph Send API fan-out. Each branch runs independently; the whole graph shares a single PostgreSQL checkpointer (executor branches have no checkpointer of their own).
+- **Deep Research (research mode)** — reuses the Plan-Execute topology and executors, only swapping in a research-oriented planner prompt and raising the planner round limit to 8; it is not a third graph.
 
 ### Core Platform
 - **Event ledger** — All execution events are appended to PostgreSQL *before* SSE push. Every run is replayable — send `GET /runs/{id}/events?after={N}` and get byte-identical output to the real-time stream.
@@ -201,7 +201,7 @@ cd web && npm run dev
 
 ## Testing
 
-**550+ tests across Go, Python, and TypeScript, all passing in CI.**
+**600+ tests across Go, Python, and TypeScript (measured: 141 Go / 417 Python / 108 frontend unit tests in CI, plus 12 Playwright e2e specs run locally via `make e2e` — 678 total). The 666 CI tests gate every PR.**
 
 ```bash
 # Go — all tests run with -race detector
@@ -217,8 +217,10 @@ make check
 The CI pipeline (`.github/workflows/pr.yml`) runs on every PR:
 - `go vet` + `go test -race -count=1`
 - `ruff` + `pytest`
-- `tsc --noEmit` + `npm run test`
+- `tsc --noEmit` + `npm run test` (Vitest unit tests, 108 cases)
 - Docker image builds (control-plane + cognition)
+
+The 12 Playwright e2e specs are not part of the PR gate; they run locally against the fake-model stack via `make e2e`.
 
 All checks must pass before merging.
 
@@ -255,8 +257,8 @@ Every resource (run, session, artifact, knowledge base document) is scoped to th
 **Trade-off:** the reverse-whitelist pattern means every new route must be explicitly allowed — friction, but a fail-closed default.
 
 ### 8. Agent modes + role-based routing
-Three modes — ReAct (fast think↔tools loop), Plan-Execute (decomposition with parallel executor fan-out via LangGraph Send API), and Deep Think (extended reasoning budget). Different tasks have different latency/quality profiles; routing by mode (and by role internally) gives cost/quality control instead of one-size-fits-all.
-**Trade-off:** three execution paths to maintain and test; plan fan-out and checkpoint isolation are subtler than a single loop.
+Two graphs plus one configuration-based research mode — ReAct (fast think↔tools loop), Plan-Execute (decomposition with parallel executor fan-out via LangGraph Send API), and Deep Research, which reuses the Plan-Execute topology, only swapping the planner prompt and round limit (8 rounds). Different tasks have different latency/quality profiles; routing by mode gives cost/quality control instead of one-size-fits-all.
+**Trade-off:** two execution paths to maintain and test; plan fan-out width and checkpoint consistency are subtler than a single loop.
 
 ### 9. Human-in-the-loop approvals
 Protected tools require approval before execution, implemented with LangGraph interrupt/resume. Some side effects (code execution, certain tools) must not run autonomously.

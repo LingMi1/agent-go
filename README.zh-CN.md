@@ -40,7 +40,7 @@ graph LR
 ```
 
 - **Go 控制面** — HTTP/SSE 流式推送、认证（bcrypt + Bearer token）、Run 调度与并发控制、事件账本、产物代理、gRPC 熔断
-- **Python 认知面** — LangGraph 智能体图（ReAct、Plan-Execute、Deep Research）、工具执行、RAG 检索链路、MCP 集成、技能系统
+- **Python 认知面** — LangGraph 智能体图（手写 ReAct、Plan-Execute 两种 StateGraph；Deep Research 是 Plan-Execute 图的研究模式）、工具执行、RAG 检索链路、MCP 集成、技能系统
 - **桥梁** — gRPC server-streaming。控制面每次 Run 发起一个 gRPC 长连接，认知面持续推送带类型的 Event 消息。gobreaker 熔断器防止级联故障。
 
 ---
@@ -49,8 +49,8 @@ graph LR
 
 ### Agent 模式
 - **ReAct（快速）** — think ↔ tools 循环，自定义步数限制和工具异常隔离。故意不用 `create_react_agent`，手写了每个决策点以确保对边缘情况的完全控制。
-- **Plan-Execute（深度研究）** — 多步任务自动拆解，通过 LangGraph Send API 并行 fan-out 执行器分支。每个分支独立运行、独立 checkpoint。
-- **Deep Think** — 扩展推理，可配置步数预算。
+- **Plan-Execute** — 多步任务自动拆解，通过 LangGraph Send API 并行 fan-out 执行器分支。每个分支独立运行；整图共用一个 PostgreSQL checkpointer（执行器分支无独立 checkpoint）。
+- **Deep Research（研究模式）** — 复用 Plan-Execute 的图拓扑与执行器，只更换研究型 planner 提示词并把规划轮次上限放宽到 8 轮，不是独立的第三张图。
 
 ### 核心平台
 - **事件账本** — 所有事件先写入 PostgreSQL 再通过 SSE 推送。每次 run 可完整回放——发 `GET /runs/{id}/events?after={N}` 即可获取与实时流字节一致的输出。
@@ -201,7 +201,7 @@ cd web && npm run dev
 
 ## 测试
 
-**Go + Python + TypeScript 共 550+ 测试用例，CI 全部通过。**
+**Go + Python + TypeScript 共 600+ 测试用例（实测 Go 141 / Python 417 / 前端单测 108 走 CI，另有 Playwright e2e 12 个通过 make e2e 本地运行，合计 678）；其中 666 个作为 PR 门禁在 CI 全绿。**
 
 ```bash
 # Go — 所有测试带 race detector
@@ -217,8 +217,10 @@ make check
 CI pipeline（`.github/workflows/pr.yml`）每次 PR 自动执行：
 - `go vet` + `go test -race -count=1`
 - `ruff` + `pytest`
-- `tsc --noEmit` + `npm run test`
+- `tsc --noEmit` + `npm run test`（Vitest 单元测试，108 个用例）
 - Docker 镜像构建（control-plane + cognition）
+
+12 个 Playwright e2e 用例不在 PR 门禁内，通过 `make e2e` 在本地 fake-model 全家桶上运行。
 
 全部通过才允许合并。
 
@@ -255,8 +257,8 @@ LangGraph 的 `create_react_agent` 封装了 think↔tools 循环，却把关键
 **取舍**：反向白名单意味着每条新路由都要显式放行，有点麻烦，但默认就是 fail-closed。
 
 ### 8. Agent 模式 + 按角色路由
-三种模式：ReAct（快速的 think↔tools 循环）、Plan-Execute（拆解任务，通过 LangGraph Send API 并行扇出多个执行器）、Deep Think（加长推理预算）。不同任务对延迟和质量的诉求不同，按模式（内部再按角色）路由，就能在成本和效果之间做选择，而不是一刀切。
-**取舍**：三条执行路径都要维护和测试；plan 扇出和 checkpoint 隔离的正确性比单循环更容易踩坑。
+两种图与一个配置化研究模式：ReAct（快速的 think↔tools 循环）、Plan-Execute（拆解任务，通过 LangGraph Send API 并行扇出多个执行器），以及复用 Plan-Execute 拓扑、只更换 planner 提示词与轮次上限（8 轮）的 Deep Research 研究模式。不同任务对延迟和质量的诉求不同，按模式路由，就能在成本和效果之间做选择，而不是一刀切。
+**取舍**：两条执行路径都要维护和测试；plan 扇出宽度与 checkpoint 一致性的正确性比单循环更容易踩坑。
 
 ### 9. 人工审批（HITL）
 受保护的工具执行前要审批，用 LangGraph 的 interrupt/resume 实现。有些副作用（跑代码、部分工具）不能让它自主执行。
